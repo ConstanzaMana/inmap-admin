@@ -1,56 +1,75 @@
-// src/api/personalService.js
+/**
+ * Gestión del personal
+ * Administra la información de los empleados, sus roles y la
+ * vinculación con las aulas/laboratorios.
+ */
+import { fetchConFallback } from './apiConfig.js';
 
-let mockPersonal = [
-  {
-    id: "1",
-    nombrePersonal: "Joaquín",
-    apellidoPersonal: "Lucero",
-    cargoLaboral: "Profesor con dedicación simple",
-    dni: "39514617",
-    oficina: "D14" // Simulamos el idDestino o el nombre de la oficina
-  },
-  {
-    id: "2",
-    nombrePersonal: "Lucía",
-    apellidoPersonal: "Fernández",
-    cargoLaboral: "JTP",
-    dni: "38123456",
-    oficina: "Laboratorio electrónica 2"
-  }
-];
+let cachePersonal = null;
+let cacheAsociados = null;
 
 export const personalService = {
+
+  // recupera la lista completa de personal
   getAll: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve([...mockPersonal]), 500);
-    });
+    if (cachePersonal) return cachePersonal;
+    cachePersonal = await fetchConFallback('/personalCompleto', { method: 'GET' }, []);
+    return cachePersonal;
   },
 
-  create: async (nuevoPersonal) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const personalConId = { ...nuevoPersonal, id: Date.now().toString() };
-        mockPersonal.push(personalConId);
-        resolve(personalConId);
-      }, 500);
-    });
+  // obtiene las relaciones actuales entre el personal y aulas
+  getAsociados: async () => {
+    if (cacheAsociados) return cacheAsociados;
+    cacheAsociados = await fetchConFallback('/asociados', { method: 'GET' }, []);
+    return cacheAsociados;
   },
 
-  update: async (id, datosActualizados) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        mockPersonal = mockPersonal.map(p => p.id === id ? { ...p, ...datosActualizados } : p);
-        resolve({ id, ...datosActualizados });
-      }, 500);
-    });
+  // registra un nuevo empleado en el sistema y actualiza el estado local
+  create: async (nuevo) => {
+    const creado = await fetchConFallback('/guardarPersonal', {
+      method: 'POST',
+      body: JSON.stringify(nuevo)
+    }, null);
+
+    if (cachePersonal && creado) cachePersonal.push(creado);
+    return creado;
   },
 
+  // actualiza la información de un empleado existente mediante su ID
+  update: async (id, datos) => {
+    const actualizado = await fetchConFallback(`/actualizarPersonal/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ idPersonal: id, ...datos })
+    }, null);
+
+    if (cachePersonal && actualizado) {
+      cachePersonal = cachePersonal.map(p => p.idPersonal === id ? actualizado : p);
+    }
+    return actualizado;
+  },
+
+  // elimina un registro de personal y sincroniza la memoria local
   delete: async (id) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        mockPersonal = mockPersonal.filter(p => p.id !== id);
-        resolve(true);
-      }, 500);
-    });
+    await fetchConFallback(`/eliminarPersonal/${id}`, { method: 'DELETE' }, null);
+    
+    if (cachePersonal) {
+      cachePersonal = cachePersonal.filter(p => p.idPersonal !== id);
+    }
+    return true;
+  },
+
+  // vincula a un empleado con destino
+  createAsociacion: async (asociacion) => {
+    return await fetchConFallback('/guardarTiene_asociado', {
+      method: 'POST',
+      body: JSON.stringify(asociacion)
+    }, null);
+  },
+
+  // elimina la vinculación entre un empleado y su destino asignada
+  deleteAsociacion: async (idPersonal, idDestino) => {
+    return await fetchConFallback(`/deleteTiene_asociado/${idPersonal}/${idDestino}`, { 
+      method: 'DELETE' 
+    }, null);
   }
 };

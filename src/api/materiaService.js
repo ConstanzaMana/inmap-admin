@@ -1,50 +1,57 @@
+/**
+ * Gestión de de Materias
+ * Administra el registro, actualización y eliminación de las asignaturas disponibles
+ */
+import { fetchConFallback } from './apiConfig.js';
 
-// Simulamos una base de datos en memoria
 let mockMaterias = [
-  { id: 1, codigo: "INF101", nombre: "Introducción a la Programación", departamento: "Ingeniería en Computación" },
-  { id: 2, codigo: "MAT201", nombre: "Análisis Matemático II", departamento: "Ciencias Básicas" },
-  { id: 3, codigo: "FIS102", nombre: "Física II", departamento: "Ciencias Básicas" }
+  { codMateria: "633", nombreMateria: "Análisis Matemático A" },
+  { codMateria: "1BA", nombreMateria: "Química General I" }
 ];
 
+let cacheMaterias = null;
+
 export const materiasService = {
-  // GET: Obtener todas las materias
+  
+  // recupera la lista completa de materias
   getAll: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve([...mockMaterias]), 500); // Simulamos medio segundo de carga
-    });
+    if (cacheMaterias) return cacheMaterias;
+    cacheMaterias = await fetchConFallback('/materias', { method: 'GET' }, [...mockMaterias]);
+    return cacheMaterias;
   },
 
-  // POST: Crear una nueva materia
-  create: async (nuevaMateria) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const materiaConId = {
-          ...nuevaMateria,
-          id: Date.now() // Generamos un ID temporal
-        };
-        mockMaterias.push(materiaConId);
-        resolve(materiaConId);
-      }, 500);
-    });
+  // registra una nueva materia y sincroniza el estado local
+  create: async (nueva) => {
+    const creada = await fetchConFallback('/guardarMateria', {
+      method: 'POST',
+      body: JSON.stringify(nueva)
+    }, null); 
+
+    if (cacheMaterias && creada) cacheMaterias.push(creada);
+    return creada;
   },
 
-  // PUT: Actualizar una materia existente
-  update: async (id, datosActualizados) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        mockMaterias = mockMaterias.map(m => m.id === id ? { ...m, ...datosActualizados } : m);
-        resolve({ id, ...datosActualizados });
-      }, 500);
-    });
+  // actualiza los datos de una materia existente mediante su código
+  update: async (codMateria, datos) => {
+    const payloadCompleto = { codMateria: codMateria, ...datos };
+    const actualizada = await fetchConFallback(`/actualizarMateria/${codMateria}`, {
+      method: 'PUT',
+      body: JSON.stringify(payloadCompleto)
+    }, null);
+
+    if (cacheMaterias && actualizada) {
+      cacheMaterias = cacheMaterias.map(m => m.codMateria === codMateria ? actualizada : m);
+    }
+    return actualizada;
   },
 
-  // DELETE: Eliminar una materia
-  delete: async (id) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        mockMaterias = mockMaterias.filter(m => m.id !== id);
-        resolve(true);
-      }, 500);
-    });
+  // elimina una materia del sistema y limpia la referencia en memoria
+  delete: async (codMateria) => {
+    await fetchConFallback(`/eliminarMateria/${codMateria}`, { method: 'DELETE' }, null);
+
+    if (cacheMaterias) {
+      cacheMaterias = cacheMaterias.filter(m => m.codMateria !== codMateria);
+    }
+    return true;
   }
 };

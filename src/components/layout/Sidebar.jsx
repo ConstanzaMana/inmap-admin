@@ -1,9 +1,15 @@
+//Barra lateral de navegación
+
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Map, GraduationCap,
-  Clock, CalendarCheck, Settings, LogOut, Users
+  Clock, Settings, LogOut, Users
 } from 'lucide-react';
+import Swal from 'sweetalert2';
+
+import logo from "../../assets/logo.png";
+
 
 const SidebarItem = ({ icon: Icon, label, to }) => {
   const location = useLocation();
@@ -22,28 +28,61 @@ const SidebarItem = ({ icon: Icon, label, to }) => {
 };
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+
+  // gestiona la salida del usuario eliminando credenciales y redirigiendo al login
+  const handleLogout = () => {
+    Swal.fire({
+      title: '¿Cerrar sesión?',
+      text: "Tendrás que volver a ingresar tus credenciales.",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#4f46e5',
+      cancelButtonColor: '#f1f5f9',
+      confirmButtonText: 'Sí, salir',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // limpieza de persistencia local para invalidar la sesión
+        localStorage.clear();
+        sessionStorage.clear();
+        navigate('/login');
+      }
+    });
+  };
+
   return (
-    <aside className="w-64 bg-slate-900 p-6 flex flex-col gap-8 shadow-xl min-h-screen">
-      <div className="flex items-center gap-3 px-2">
-        <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">In</div>
+    // contenedor lateral
+    <aside className="w-64 bg-slate-900 p-6 flex flex-col h-screen sticky top-0 shadow-xl select-none border-r border-slate-800">
+
+      <div className="flex items-center gap-3 px-2 mb-10 shrink-0">
+        <img src={logo} alt="InMap Logo" className="w-12 h-12 object-contain rounded-xl" />
         <h1 className="text-xl font-bold text-white tracking-tight">InMap Admin</h1>
       </div>
 
-      <nav className="flex flex-col gap-2 flex-1">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-2">Principal</p>
+      {/* navegación principal del panel de administración */}
+      <nav className="flex flex-col gap-2 shrink">
         <SidebarItem icon={LayoutDashboard} label="Dashboard" to="/" />
-        <SidebarItem icon={Map} label="Mapa Editor" to="/mapa" />
-
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-2 px-2">Gestión Académica</p>
+        <SidebarItem icon={Map} label="Plano" to="/mapa" />
         <SidebarItem icon={GraduationCap} label="Materias" to="/materias" />
         <SidebarItem icon={Clock} label="Horarios" to="/horarios" />
         <SidebarItem icon={Users} label="Personal" to="/personal" />
       </nav>
 
-      <div className="pt-6 border-t border-slate-800 flex flex-col gap-2">
+      {/* acciones de usuario y configuración*/}
+      <div className="mt-auto pt-6 border-t border-slate-800 space-y-2 shrink-0">
         <SidebarItem icon={Settings} label="Configuración" to="/config" />
-        <SidebarItem icon={LogOut} label="Cerrar Sesión" to="/login" />
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all text-slate-400 hover:bg-rose-900/20 hover:text-rose-400 w-full group"
+        >
+          <LogOut size={20} className="group-hover:rotate-12 transition-transform" />
+          <span className="font-medium">Cerrar Sesión</span>
+        </button>
       </div>
+
     </aside>
   );
 }
