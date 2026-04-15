@@ -1,3 +1,8 @@
+/**
+ * Gestión del personal:
+ * Administrar informacion de los empleados, sus cargos
+ * y la vinculación con las aulas/laboratorios.
+ */
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Users, IdCard, MapPin, Search } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -24,9 +29,10 @@ export default function Personal() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [errores, setErrores] = useState({});
+  const rolUsuario = localStorage.getItem('rol') || '';
+  const esAdmin = rolUsuario.toUpperCase() === 'ADMIN';
 
   const estadoInicial = {
-    idPersonal: '',
     nombrePersonal: '',
     apellidoPersonal: '',
     cargoLaboral: '',
@@ -35,19 +41,36 @@ export default function Personal() {
   };
   const [formData, setFormData] = useState(estadoInicial);
 
+  // sincronización de registros de personal, asociaciones y destinos
   const cargarDatos = async () => {
     setCargando(true);
     try {
-      // Cargamos solo el personal (limpiamos la basura de Horarios que se había pegado)
       const dataPersonal = await personalService.getAll();
-      setPersonal(dataPersonal);
+      const dataAsociados = await personalService.getAsociados();
+      const personalConOficinas = dataPersonal.map(persona => {
+        const asociacion = dataAsociados.find(a => String(a.idPersonal) === String(persona.idPersonal));
+        let nombreOficina = '';
 
-      // Preparamos la lista del autocompletado de oficinas usando los destinos
+        if (asociacion) {
+          const destinoInfo = destinosData.find(d => String(d.idDestino) === String(asociacion.idDestino));
+          if (destinoInfo) {
+            nombreOficina = destinoInfo.nombreDestino || destinoInfo.idDestino;
+          }
+        }
+        return {
+          ...persona,
+          oficina: nombreOficina,
+          oficinaOriginal: nombreOficina
+        };
+      });
+
+      setPersonal(personalConOficinas);
+
       const opcionesDestinos = destinosData.map(d => d.nombreDestino || d.idDestino);
       setListaDestinos(opcionesDestinos);
 
     } catch (e) {
-      console.error("Error cargando datos:", e);
+      console.error("error cargando datos:", e);
     }
     setCargando(false);
   };
@@ -59,8 +82,7 @@ export default function Personal() {
     const nombreCompleto = `${p.nombrePersonal} ${p.apellidoPersonal}`.toLowerCase();
     return (
       nombreCompleto.includes(termino) ||
-      String(p.dni).includes(termino) ||
-      String(p.idPersonal).toLowerCase().includes(termino)
+      String(p.dni).includes(termino)
     );
   });
 
@@ -69,15 +91,10 @@ export default function Personal() {
 
     if (!valor.toString().trim()) {
       errorMsg = 'Este campo es obligatorio.';
-    } else if ((campo === 'nombrePersonal' || campo === 'apellidoPersonal' || campo === 'idPersonal') && valor.trim().length < 3) {
-      errorMsg = 'Debe tener al menos 3 caracteres.';
+    } else if ((campo === 'nombrePersonal' || campo === 'apellidoPersonal') && valor.trim().length < 3) {
+      errorMsg = 'Mínimo 3 caracteres.';
     } else if (campo === 'dni' && valor.toString().length < 7) {
-      errorMsg = 'El DNI debe tener al menos 7 números.';
-    }
-
-    if (campo === 'idPersonal' && !editando) {
-      const existe = personal.some(p => String(p.idPersonal).toLowerCase() === String(valor).toLowerCase());
-      if (existe) errorMsg = 'Este ID de legajo ya está en uso.';
+      errorMsg = 'DNI inválido (mínimo 7 dígitos).';
     }
 
     setErrores(prev => ({ ...prev, [campo]: errorMsg }));
@@ -93,7 +110,6 @@ export default function Personal() {
     e.preventDefault();
 
     const nuevosErrores = {};
-    if (!formData.idPersonal.trim()) nuevosErrores.idPersonal = 'El ID es obligatorio.';
     if (!formData.nombrePersonal.trim()) nuevosErrores.nombrePersonal = 'El nombre es obligatorio.';
     if (!formData.apellidoPersonal.trim()) nuevosErrores.apellidoPersonal = 'El apellido es obligatorio.';
     if (!formData.cargoLaboral.trim()) nuevosErrores.cargoLaboral = 'Debe seleccionar un cargo.';
@@ -106,7 +122,6 @@ export default function Personal() {
 
     setCargando(true);
 
-    // Buscamos el ID real del destino (Ej: D10) a partir del texto ingresado
     const destinoMatch = destinosData.find(d => d.nombreDestino === formData.oficina || d.idDestino === formData.oficina);
     const idDestinoFinal = destinoMatch ? destinoMatch.idDestino : null;
 
@@ -120,29 +135,22 @@ export default function Personal() {
     try {
       if (editando) {
         await personalService.update(editando.idPersonal, datosPersona);
-
-        // Lógica de actualización de oficina (asociado)
         if (formData.oficina !== editando.oficinaOriginal) {
-
-           // Si tenía una oficina antes, buscamos el ID viejo para borrarla
            if (editando.oficinaOriginal) {
              const viejoDestino = destinosData.find(d => d.nombreDestino === editando.oficinaOriginal || d.idDestino === editando.oficinaOriginal);
              if (viejoDestino) {
                await personalService.deleteAsociacion(editando.idPersonal, viejoDestino.idDestino);
              }
            }
-
-           // Si asignamos una nueva, la creamos
            if (idDestinoFinal) {
              await personalService.createAsociacion({ idPersonal: editando.idPersonal, idDestino: idDestinoFinal });
            }
         }
       } else {
-        await personalService.create({ idPersonal: formData.idPersonal, ...datosPersona });
+        const nuevoPersonal = await personalService.create(datosPersona);
 
-        // Si al crear la persona le asignamos oficina, la guardamos
-        if (idDestinoFinal) {
-           await personalService.createAsociacion({ idPersonal: formData.idPersonal, idDestino: idDestinoFinal });
+        if (idDestinoFinal && nuevoPersonal && nuevoPersonal.idPersonal) {
+           await personalService.createAsociacion({ idPersonal: nuevoPersonal.idPersonal, idDestino: idDestinoFinal });
         }
       }
 
@@ -160,7 +168,8 @@ export default function Personal() {
       setErrores({});
       cargarDatos();
     } catch (error) {
-      Swal.fire({ title: 'Error', text: 'No se pudo guardar. Revisá la conexión.', icon: 'error', confirmButtonColor: '#ef4444' });
+      const mensaje = error.message || 'Error en la conexión con el servidor.';
+      Swal.fire({ title: 'Atención', text: mensaje, icon: 'warning' });
     } finally {
       setCargando(false);
     }
@@ -175,13 +184,11 @@ export default function Personal() {
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
       confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
       reverseButtons: true
     }).then(async (result) => {
       if (result.isConfirmed) {
         setCargando(true);
         try {
-          // Si tiene oficina asignada, borramos la asociación primero para evitar errores en BD
           if (oficinaActual) {
              const destinoActual = destinosData.find(d => d.nombreDestino === oficinaActual || d.idDestino === oficinaActual);
              if (destinoActual) {
@@ -189,10 +196,10 @@ export default function Personal() {
              }
           }
           await personalService.delete(id);
-          Swal.fire({ title: 'Eliminado', text: 'El registro ha sido borrado.', icon: 'success', timer: 1500, showConfirmButton: false });
+          Swal.fire({ title: 'Eliminado', text: 'El personal fue eliminado.', icon: 'success', timer: 1500, showConfirmButton: false });
           cargarDatos();
         } catch (error) {
-          Swal.fire('Error', 'Hubo un fallo al intentar eliminar.', 'error');
+          Swal.fire('Error', 'Fallo al intentar eliminar.', 'error');
           setCargando(false);
         }
       }
@@ -216,18 +223,23 @@ export default function Personal() {
 
   return (
     <div className="space-y-6 h-full flex flex-col p-2">
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Users className="text-indigo-600" /> Gestión de Personal
           </h1>
         </div>
-        <button
-          onClick={() => { setEditando(null); setFormData(estadoInicial); setErrores({}); setMostrarModal(true); }}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 flex items-center gap-2 transition-all shadow-md shadow-indigo-100 font-medium"
-        >
-          <Plus size={20} /> Agregar Personal
-        </button>
+
+        {/* Botón Agregar Personal solo si es ADMIN */}
+        {esAdmin && (
+          <button
+            onClick={() => { setEditando(null); setFormData(estadoInicial); setErrores({}); setMostrarModal(true); }}
+            className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 flex items-center gap-2 transition-all shadow-md shadow-indigo-100 font-medium"
+          >
+            <Plus size={20} /> Agregar Personal
+          </button>
+        )}
       </div>
 
       <div className="flex justify-start">
@@ -236,7 +248,7 @@ export default function Personal() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
-              placeholder="Buscar por nombre, apellido, DNI o ID..."
+              placeholder="Buscar por nombre, apellido o DNI..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all text-sm"
@@ -255,9 +267,9 @@ export default function Personal() {
                 <tr className="bg-slate-50/50 border-b border-slate-200">
                   <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider">Nombre Completo</th>
                   <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider">Cargo Laboral</th>
-                  <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider">DNI / ID</th>
+                  <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider">DNI</th>
                   <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider">Oficina / Lab</th>
-                  <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider text-right">Acciones</th>
+                  {esAdmin && <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider text-right">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -276,7 +288,6 @@ export default function Personal() {
                         <IdCard size={14} className="text-slate-400" />
                         {p.dni ? Number(p.dni).toLocaleString('es-AR') : '-'}
                       </span>
-                      <span className="text-xs text-slate-400 font-mono pl-1">ID: {p.idPersonal}</span>
                     </td>
                     <td className="p-4 text-slate-600 align-top pt-4">
                       {p.oficina ? (
@@ -288,22 +299,25 @@ export default function Personal() {
                         <span className="text-slate-400 text-sm italic inline-block mt-1">Sin asignar</span>
                       )}
                     </td>
-                    <td className="p-4 text-right align-top pt-4">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => abrirEdicion(p)} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Editar">
-                          <Edit2 size={20} />
-                        </button>
-                        <button onClick={() => handleEliminar(p.idPersonal, p.oficina)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Eliminar">
-                          <Trash2 size={20} />
-                        </button>
-                      </div>
-                    </td>
+
+                    {esAdmin && (
+                      <td className="p-4 text-right align-top pt-4">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => abrirEdicion(p)} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Editar">
+                            <Edit2 size={20} />
+                          </button>
+                          <button onClick={() => handleEliminar(p.idPersonal, p.oficina)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Eliminar">
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {personalFiltrado.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="p-12 text-center text-slate-400 italic bg-slate-50/30">
-                      No se encontraron resultados para "{busqueda}"
+                    <td colSpan={esAdmin ? 5 : 4} className="p-12 text-center text-slate-400 italic bg-slate-50/30">
+                      No se encontraron resultados
                     </td>
                   </tr>
                 )}
@@ -322,21 +336,6 @@ export default function Personal() {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">ID Personal (Legajo)</label>
-                  <input
-                    type="text" value={formData.idPersonal}
-                    disabled={!!editando}
-                    onChange={e => manejarCambio(e, 'idPersonal')}
-                    className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm transition-colors ${
-                      errores.idPersonal ? 'bg-rose-50 border-rose-400 text-rose-900' :
-                      editando ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed' : 'bg-white border-slate-200'
-                    }`}
-                    placeholder="Ej: P01 o 105"
-                  />
-                  {errores.idPersonal && <p className="text-xs text-rose-500 mt-1.5 font-medium">{errores.idPersonal}</p>}
-              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -422,7 +421,7 @@ export default function Personal() {
                   placeholder="Ej: D14 o Aula 210"
                 />
                 {focoOficina && (
-                  <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto overflow-x-hidden">
+                  <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
                     {listaDestinos
                       .filter(d => d.toLowerCase().includes(formData.oficina.toLowerCase()))
                       .map((destino, i) => (

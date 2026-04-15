@@ -1,21 +1,27 @@
+/**
+ * Gestión de materia:
+ * Registro de nuevas materias, la edición de nombres y búsqueda filtrada por código o nombre.
+ */
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, BookOpen, Hash, Search } from 'lucide-react'; // Sumamos Search
+import { Plus, Edit2, Trash2, BookOpen, Hash, Search } from 'lucide-react';
 import { materiasService } from '../api/materiaService.js';
 import Swal from 'sweetalert2';
 
 export default function Materias() {
   const [materias, setMaterias] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [busqueda, setBusqueda] = useState(''); // Estado para el filtro
+  const [busqueda, setBusqueda] = useState('');
 
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [errorCodigo, setErrorCodigo] = useState('');
   const [errorNombre, setErrorNombre] = useState('');
-
+  const rolUsuario = localStorage.getItem('rol') || '';
+  const esAdmin = rolUsuario.toUpperCase() === 'ADMINISTRADOR' || rolUsuario.toUpperCase() === 'ADMIN';
   const estadoInicial = { codMateria: '', nombreMateria: '' };
   const [formData, setFormData] = useState(estadoInicial);
 
+  // recuperación sincronizada de la lista de materias desde el servicio
   const cargarDatos = async () => {
     setCargando(true);
     const data = await materiasService.getAll();
@@ -25,27 +31,30 @@ export default function Materias() {
 
   useEffect(() => { cargarDatos(); }, []);
 
-  // LÓGICA DE FILTRADO: Buscamos coincidencia en nombre o código
+  // lógica de filtrado para la tabla de resultados
   const materiasFiltradas = materias.filter(m =>
     m.nombreMateria.toLowerCase().includes(busqueda.toLowerCase()) ||
     m.codMateria.toLowerCase().includes(busqueda.toLowerCase())
   );
 
+  // valida la disponibilidad del código de materia antes de registrar una nueva
   const manejarCambioCodigo = (e) => {
     const valor = e.target.value;
     setFormData({ ...formData, codMateria: valor });
     if (!editando) {
       const existe = materias.some(m => String(m.codMateria).toLowerCase() === String(valor).toLowerCase());
-      setErrorCodigo(existe ? 'Este código ya está en uso por otra materia.' : '');
+      setErrorCodigo(existe ? 'este código ya está en uso.' : '');
     }
   };
 
+  // valida la extensión mínima del nombre de la asignatura
   const manejarCambioNombre = (e) => {
     const valor = e.target.value;
     setFormData({ ...formData, nombreMateria: valor });
-    setErrorNombre(valor.length > 0 && valor.trim().length < 3 ? 'El nombre debe tener al menos 3 caracteres.' : '');
+    setErrorNombre(valor.length > 0 && valor.trim().length < 3 ? 'mínimo 3 caracteres.' : '');
   };
 
+  // gestiona el envío de datos para creación o actualización de registros
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (errorCodigo || errorNombre || formData.nombreMateria.trim().length < 3) return;
@@ -59,8 +68,8 @@ export default function Materias() {
       }
 
       Swal.fire({
-        title: '¡Éxito!',
-        text: `La materia se ha ${editando ? 'actualizado' : 'guardado'} correctamente.`,
+        title: '¡éxito!',
+        text: `la materia se ha ${editando ? 'actualizado' : 'guardado'} correctamente.`,
         icon: 'success',
         confirmButtonColor: '#4f46e5',
         timer: 2000
@@ -71,48 +80,38 @@ export default function Materias() {
       setFormData(estadoInicial);
       cargarDatos();
     } catch (error) {
-      Swal.fire({
-        title: 'Error',
-        text: 'No se pudo conectar con el servidor. Revisá el túnel.',
-        icon: 'error',
-        confirmButtonColor: '#ef4444'
-      });
+      Swal.fire({ title: 'error', text: 'no se pudo completar la operación.', icon: 'error' });
       setCargando(false);
     }
   };
 
+  // Elimina una materia
   const handleEliminar = async (codMateria) => {
     Swal.fire({
-      title: '¿Estás seguro?',
-      text: "Esta acción no se puede deshacer.",
+      title: '¿estás seguro?',
+      text: "esta acción no se puede deshacer.",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: 'sí, eliminar',
       reverseButtons: true
     }).then(async (result) => {
       if (result.isConfirmed) {
         setCargando(true);
         try {
           await materiasService.delete(codMateria);
-          Swal.fire({
-            title: 'Eliminado',
-            text: 'La materia ha sido borrada.',
-            icon: 'success',
-            timer: 1500,
-            showConfirmButton: false
-          });
+          Swal.fire({ title: 'eliminado', text: 'materia borrada.', icon: 'success', timer: 1500, showConfirmButton: false });
           cargarDatos();
         } catch (error) {
-          Swal.fire('Error', 'Hubo un fallo al intentar eliminar.', 'error');
+          Swal.fire('error', 'fallo al intentar eliminar.', 'error');
           setCargando(false);
         }
       }
     });
   };
 
+  // prepara la interfaz para la modificación de una materia existente
   const abrirEdicion = (materia) => {
     setEditando(materia);
     setFormData({ ...materia });
@@ -123,23 +122,28 @@ export default function Materias() {
 
   return (
       <div className="space-y-6 h-full flex flex-col p-2">
-        {/* 1. TÍTULO Y BOTÓN DE ACCIÓN */}
+
+        {/* Cabecera */}
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <BookOpen className="text-indigo-600" /> Gestión de Materias
             </h1>
           </div>
-          <button
-            onClick={() => { setEditando(null); setFormData(estadoInicial); setErrorCodigo(''); setErrorNombre(''); setMostrarModal(true); }}
-            className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 flex items-center gap-2 transition-all shadow-md shadow-indigo-100 font-medium"
-          >
-            <Plus size={20} /> Nueva Materia
-          </button>
+
+          {/* Boton Crear (Solo admin)*/}
+          {esAdmin && (
+            <button
+              onClick={() => { setEditando(null); setFormData(estadoInicial); setErrorCodigo(''); setErrorNombre(''); setMostrarModal(true); }}
+              className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 flex items-center gap-2 transition-all shadow-md shadow-indigo-100 font-medium"
+            >
+              <Plus size={20} /> Nueva Materia
+            </button>
+          )}
         </div>
 
-        {/* 2. BUSCADOR EN FILA PROPIA (ENTRE TÍTULO Y TABLA) */}
-        <div className="flex justify-start"> {/* Contenedor para controlar la alineación */}
+        {/* barra de búsqueda para filtrado rápido de registros */}
+        <div className="flex justify-start">
           <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm w-full max-w-xl">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -154,7 +158,7 @@ export default function Materias() {
           </div>
         </div>
 
-        {/* 3. TABLA DE RESULTADOS */}
+        {/* visualización de datos en formato de tabla */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1">
           {cargando ? (
             <div className="p-12 text-center text-slate-500 font-medium italic animate-pulse">Cargando lista de materias...</div>
@@ -165,7 +169,9 @@ export default function Materias() {
                   <tr className="bg-slate-50/50 border-b border-slate-200">
                     <th className="p-4 font-bold text-slate-600 w-40 uppercase text-xs tracking-wider text-center">Código</th>
                     <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider">Nombre de la Materia</th>
-                    <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider text-right">Acciones</th>
+
+                    {/* "Acciones" solo Admin */}
+                    {esAdmin && <th className="p-4 font-bold text-slate-600 uppercase text-xs tracking-wider text-right">Acciones</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -179,21 +185,25 @@ export default function Materias() {
                       <td className="p-4 font-semibold text-slate-800 text-lg">
                         {m.nombreMateria}
                       </td>
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => abrirEdicion(m)} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Editar">
-                            <Edit2 size={20} />
-                          </button>
-                          <button onClick={() => handleEliminar(m.codMateria)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Eliminar">
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
-                      </td>
+
+                      {/* Oculta los botones de Editar/Eliminar si no es Admin */}
+                      {esAdmin && (
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => abrirEdicion(m)} className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Editar">
+                              <Edit2 size={20} />
+                            </button>
+                            <button onClick={() => handleEliminar(m.codMateria)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Eliminar">
+                              <Trash2 size={20} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                   {materiasFiltradas.length === 0 && (
                     <tr>
-                      <td colSpan="3" className="p-12 text-center text-slate-400 italic bg-slate-50/30">
+                      <td colSpan={esAdmin ? 3 : 2} className="p-12 text-center text-slate-400 italic bg-slate-50/30">
                         No se encontraron materias que coincidan con "{busqueda}"
                       </td>
                     </tr>
@@ -204,7 +214,7 @@ export default function Materias() {
           )}
         </div>
 
-      {/* MODAL (Se mantiene igual) */}
+      {/* Formulario para la gestión de registros */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-100">
@@ -213,9 +223,13 @@ export default function Materias() {
               {editando ? 'Editar Materia' : 'Nueva Materia'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
+
+              {/* campo de identificación único */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Código de Materia</label>
-                <input
+                <label htmlFor="codMateria" className="block text-sm font-bold text-slate-700 mb-1">
+                      Código de Materia
+                 </label><input
+                 id="codMateria"
                   type="text" required value={formData.codMateria}
                   disabled={!!editando}
                   onChange={manejarCambioCodigo}
@@ -226,9 +240,13 @@ export default function Materias() {
                 />
                 {errorCodigo && <p className="text-xs text-rose-500 mt-1.5 font-medium">{errorCodigo}</p>}
               </div>
+
+              {/* campo de nombre de la materia */}
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Nombre de la Materia</label>
-                <input
+                <label htmlFor="nombreMateria" className="block text-sm font-bold text-slate-700 mb-1">
+                      Nombre de la Materia
+                </label><input
+                id="nombreMateria"
                   type="text" required value={formData.nombreMateria}
                   onChange={manejarCambioNombre}
                   className={`w-full p-2.5 border rounded-xl outline-none transition-colors ${
@@ -239,6 +257,7 @@ export default function Materias() {
                 {errorNombre ? <p className="text-xs text-rose-500 mt-1.5 font-medium">{errorNombre}</p> : <p className="text-xs text-slate-400 mt-1.5">Mínimo 3 caracteres.</p>}
               </div>
 
+              {/* acciones de confirmación y cierre del formulario */}
               <div className="flex gap-3 pt-6 mt-2 border-t border-slate-100">
                 <button type="button" onClick={() => setMostrarModal(false)} className="flex-1 px-4 py-2.5 text-slate-600 font-bold bg-slate-100 rounded-xl">Cancelar</button>
                 <button type="submit" disabled={!!errorCodigo || !!errorNombre} className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50">Guardar</button>

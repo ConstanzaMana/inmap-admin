@@ -4,7 +4,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Map, GraduationCap,
-  Clock, Settings, LogOut, Users
+  Clock, Settings, LogOut, Users, Activity // 👇 NUEVO: Agregamos el ícono Activity
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -37,8 +37,8 @@ export default function Sidebar() {
       text: "Tendrás que volver a ingresar tus credenciales.",
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#4f46e5',
-      cancelButtonColor: '#f1f5f9',
+      confirmButtonColor: '#ef4444', // Rojo (equivalente a rose-500/red-500)
+      cancelButtonColor: '#4f46e5',  // Azul/Indigo (el color principal de InMap)
       confirmButtonText: 'Sí, salir',
       cancelButtonText: 'Cancelar',
       reverseButtons: true
@@ -56,10 +56,10 @@ export default function Sidebar() {
     // contenedor lateral
     <aside className="w-64 bg-slate-900 p-6 flex flex-col h-screen sticky top-0 shadow-xl select-none border-r border-slate-800">
 
-      <div className="flex items-center gap-3 px-2 mb-10 shrink-0">
-        <img src={logo} alt="InMap Logo" className="w-12 h-12 object-contain rounded-xl" />
-        <h1 className="text-xl font-bold text-white tracking-tight">InMap Admin</h1>
-      </div>
+      <Link to="/" className="flex items-center gap-3 px-2 mb-10 shrink-0 hover:opacity-80 transition-opacity no-underline">
+          <img src={logo} alt="InMap Logo" className="w-12 h-12 object-contain rounded-xl" />
+          <h1 className="text-xl font-bold text-white tracking-tight">InMap Admin</h1>
+      </Link>
 
       {/* navegación principal del panel de administración */}
       <nav className="flex flex-col gap-2 shrink">
@@ -68,6 +68,8 @@ export default function Sidebar() {
         <SidebarItem icon={GraduationCap} label="Materias" to="/materias" />
         <SidebarItem icon={Clock} label="Horarios" to="/horarios" />
         <SidebarItem icon={Users} label="Personal" to="/personal" />
+
+        <SidebarItem icon={Activity} label="Reportes" to="/reportes" />
       </nav>
 
       {/* acciones de usuario y configuración*/}

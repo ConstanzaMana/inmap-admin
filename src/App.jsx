@@ -1,6 +1,9 @@
+/**
+ * Configuración central de enrutamiento y seguridad.
+ * Protege el acceso administrativo.
+ */
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-
 import MainLayout from './components/layout/MainLayout';
 import Dashboard from './pages/Dashboard.jsx';
 import MapaEditor from './pages/mapaEditor.jsx';
@@ -9,20 +12,21 @@ import Horarios from './pages/Horarios';
 import Personal from './pages/Personal.jsx';
 import Login from './pages/Login.jsx';
 import Configuracion from './pages/Configuracion';
+import RecuperarPassword from './pages/RecuperarPassword.jsx';
+import RestablecerPassword from './pages/RestablecerPassword.jsx';
+import Reportes from './pages/Reportes';
 
 /**
- * Componente guardián para proteger rutas privadas.
- * Verifica la existencia de un token de sesión; si no existe, redirige al login.
+ * Valida sesiones activas.
+ * verifica la existencia del token en el almacenamiento local  para autorizar el acceso a las vistas privadas.
  */
 const RutaPrivada = ({ children }) => {
   const token = localStorage.getItem('adminToken');
 
   if (!token) {
-    // Si no hay token, se redirige automáticamente a la pantalla de inicio de sesión
+    // redirección automática al login en caso de ausencia de credenciales
     return <Navigate to="/login" replace />;
   }
-
-  // Si hay token, se permite el acceso al componente hijo
   return children;
 };
 
@@ -30,10 +34,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* RUTA PÚBLICA: Fuera del MainLayout para que no se vea la barra lateral */}
-        <Route path="/login" element={<Login />} />
 
-        {/* RUTAS PRIVADAS: Envueltas por el guardián y el Layout principal */}
+        {/* ruta pública: acceso al portal de autenticación */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/recuperar-password" element={<RecuperarPassword />} />
+        <Route path="/reset-password" element={<RestablecerPassword />} />
+
+        {/* rutas privadas: protegidas y envueltas en la estructura principal */}
         <Route
           path="/*"
           element={
@@ -45,12 +52,14 @@ export default function App() {
                   <Route path="/materias" element={<Materias />} />
                   <Route path="/horarios" element={<Horarios />} />
                   <Route path="/personal" element={<Personal />} />
+                  <Route path="/reportes" element={<Reportes />} />
                   <Route path="/config" element={<Configuracion />} />
                 </Routes>
               </MainLayout>
             </RutaPrivada>
           }
         />
+
       </Routes>
     </BrowserRouter>
   );

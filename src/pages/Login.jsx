@@ -1,5 +1,10 @@
+/**
+ * acceso al sistema (login).
+ * gestiona la autenticación de usuarios,
+ * almacena el token de sesión y redirige al panel principal.
+ */
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import logo from "../assets/logo.png";
 import { API_BASE_URL } from '../api/apiConfig';
@@ -8,62 +13,93 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [cargando, setCargando] = useState(false);
-
   const navigate = useNavigate();
 
-  const manejarLogin = async (e) => {
-    e.preventDefault();
-    setCargando(true);
+  // procesa la validación de credenciales con el servidor
+  // procesa la validación de credenciales con el servidor y maneja excepciones reales
+    const manejarLogin = async (e) => {
+      e.preventDefault();
+      setCargando(true);
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({
-          username: username,
-          password: password
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Credenciales inválidas');
-      }
-
-      const data = await response.json();
-
-      if (data.token) {
-        localStorage.setItem('adminToken', data.token);
-
-        Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'success',
-          title: 'Sesión iniciada correctamente',
-          showConfirmButton: false,
-          timer: 2000
+      try {
+        const response = await fetch(`${API_BASE_URL}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
+          body: JSON.stringify({
+            username: username,
+            password: password
+          })
         });
 
-        navigate('/');
+        if (!response.ok) {
+          let mensajeError = 'Error desconocido al intentar iniciar sesión.';
+
+          try {
+            // 1. Leemos TODO lo que mandó el servidor como si fuera texto plano
+            const textData = await response.text();
+
+            try {
+              // 2. Intentamos convertir ese texto a JSON
+              const errorData = JSON.parse(textData);
+              if (errorData && errorData.message) {
+                mensajeError = errorData.message; // "Usuario no encontrado", etc.
+              }
+            } catch (parseError) {
+              // 3. Si falla el parseo, es porque Spring Security mandó HTML o nada.
+              if (response.status === 403) {
+                mensajeError = 'Error 403: Spring Security bloqueó el acceso o devolvió un error genérico en lugar del JSON esperado.';
+              } else if (response.status === 401) {
+                mensajeError = 'Error 401: No autorizado.';
+              } else {
+                mensajeError = `El servidor devolvió un error ${response.status} sin formato JSON.`;
+              }
+            }
+          } catch (e) {
+            mensajeError = 'El servidor no responde o el túnel está inactivo.';
+          }
+
+          throw new Error(mensajeError);
+        }
+
+        const data = await response.json();
+        console.log("Respuesta del Login:", data);
+
+        if (data.token) {
+          localStorage.setItem('adminToken', data.token);
+          console.log("Respuesta del Login:", data.token);
+          localStorage.setItem('rol', data.rol);
+
+          Swal.fire({
+            toast: true, position: 'top-end', icon: 'success',
+            title: 'Sesión iniciada correctamente',
+            showConfirmButton: false, timer: 2000
+          });
+
+          navigate('/');
+        }
+
+      } catch (error) {
+        console.error('error en login:', error);
+
+        let mensajeFinal = error.message;
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          mensajeFinal = 'No hay conexión con el servidor. Revisá tu internet o verificá el túnel ngrok.';
+        }
+
+        Swal.fire('Acceso denegado', mensajeFinal, 'error');
+      } finally {
+        setCargando(false);
       }
-
-    } catch (error) {
-      console.error('Error en login:', error);
-      Swal.fire('Acceso Denegado', 'El usuario o la contraseña son incorrectos.', 'error');
-    } finally {
-      setCargando(false);
-    }
-  };
-
+    };
   return (
     <div className="min-h-screen flex font-sans">
 
-      {/* MITAD IZQUIERDA: Branding (Se oculta en celulares) */}
+      {/* sección lateral de identidad visual (visible en escritorio) */}
       <div className="hidden md:flex w-1/2 bg-[#dcecf9] flex-col items-center justify-center p-12 text-center">
         <div className="mb-8">
-          {/* Usamos tu logo acá, escalado para que sea protagonista */}
           <img src={logo} alt="InMap Logo" className="w-48 h-48 object-contain drop-shadow-xl" />
         </div>
         <h1 className="text-2xl font-medium text-slate-700 max-w-sm leading-snug">
@@ -71,7 +107,7 @@ export default function Login() {
         </h1>
       </div>
 
-      {/* MITAD DERECHA: Formulario */}
+      {/* formulario de ingreso y autenticación */}
       <div className="w-full md:w-1/2 bg-white flex items-center justify-center p-8">
         <div className="max-w-md w-full space-y-8">
 
@@ -83,11 +119,13 @@ export default function Login() {
 
           <form onSubmit={manejarLogin} className="space-y-6 mt-8">
 
+{/* entrada de usuario */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-slate-700">
+              <label htmlFor="username" className="block text-sm font-bold text-slate-700">
                 Nombre de usuario
               </label>
               <input
+                id="username"
                 type="text"
                 required
                 value={username}
@@ -96,11 +134,13 @@ export default function Login() {
               />
             </div>
 
+            {/* entrada de clave de acceso */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-slate-700">
+              <label htmlFor="password" className="block text-sm font-bold text-slate-700">
                 Contraseña
               </label>
               <input
+                id="password"
                 type="password"
                 required
                 value={password}
@@ -109,6 +149,7 @@ export default function Login() {
               />
             </div>
 
+            {/* acción de envío con estado de carga */}
             <button
               type="submit"
               disabled={cargando}
@@ -118,13 +159,14 @@ export default function Login() {
                   : 'bg-[#bfdbfe] hover:bg-[#93c5fd]'
               }`}
             >
-              {cargando ? 'Ingresando...' : 'Ingresar'}
+              {cargando ? 'ingresando...' : 'Ingresar'}
             </button>
 
+            {/* enlace para iniciar el flujo de recuperación de contraseña */}
             <div className="pt-2">
-              <a href="#" className="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+              <Link to="/recuperar-password" className="text-xs text-slate-500 hover:text-slate-700 transition-colors">
                 ¿Olvidó su contraseña?
-              </a>
+              </Link>
             </div>
           </form>
 

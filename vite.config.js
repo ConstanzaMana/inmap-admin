@@ -13,5 +13,9 @@ export default defineConfig({
           rewrite: (path) => path.replace(/^\/api/, '') // Le quita el '/api' antes de enviarlo a Ngrok
         }
       }
-    }
+    },
+    test: {
+        environment: 'jsdom',
+        globals: true,
+      }
 })

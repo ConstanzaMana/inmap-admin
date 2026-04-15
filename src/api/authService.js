@@ -1,47 +1,65 @@
 /**
  * servicios de autenticación y gestión de usuarios.
- * Módulo que centraliza las peticiones de seguridad, incluyendo el
- * cambio de contraseña y el registro de nuevos perfiles.
+ * módulo que centraliza las peticiones de seguridad, incluyendo el
+ * cambio de contraseña, registro y eliminación de perfiles.
  */
 import axios from 'axios';
-
-const API_URL = 'https://suzanne-nonprincipled-submaniacally.ngrok-free.dev';
+import { API_BASE_URL } from './apiConfig';
 
 export const authService = {
-  
-  /**
-   * Actualiza la contraseña del usuario autenticado.
-   * Renueva el token en el almacenamiento local para mantener la sesión activa.
-   */
+
   actualizarPassword: async (oldPassword, newPassword) => {
-    const token = localStorage.getItem('adminToken');
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await axios.post(`${API_BASE_URL}/actualizarPassword`, {
+        oldPassword: oldPassword,
+        newPassword: newPassword
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
 
-    const response = await axios.post(`${API_URL}/actualizarPassword`, {
-      oldPassword: oldPassword,
-      newPassword: newPassword
-    }, {
-      headers: {
-        'Authorization': `Bearer ${token}`
+      if (response.data && response.data.token) {
+        localStorage.setItem('adminToken', response.data.token);
       }
-    });
-    if (response.data && response.data.token) {
-      localStorage.setItem('adminToken', response.data.token);
+      return response.data;
+    } catch (error) {
+      // Capturamos el mensaje exacto que manda el backend
+      throw new Error(error.response?.data?.message || 'Error al actualizar la contraseña.');
     }
-
-    return response.data;
   },
 
-  //Registra un nuevo perfil de usuario.
   registrarUsuario: async (nuevoUsuario) => {
-    const token = localStorage.getItem('adminToken');
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await axios.post(`${API_BASE_URL}/register`, nuevoUsuario, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      // Capturamos la excepción (ej: OverlapException del backend)
+      throw new Error(error.response?.data?.message || 'Error al crear el perfil de usuario.');
+    }
+  },
 
-    const response = await axios.post(`${API_URL}/register`, nuevoUsuario, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    return response.data;
+  eliminarUsuario: async (username) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await axios.delete(`${API_BASE_URL}/eliminarUsuario/${username}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al eliminar el usuario.');
+    }
   }
 };

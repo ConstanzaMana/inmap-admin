@@ -48,28 +48,33 @@ export const personalService = {
     return actualizado;
   },
 
-  // elimina un registro de personal y sincroniza la memoria local
+  // elimina un personal y sincroniza la memoria local
   delete: async (id) => {
     await fetchConFallback(`/eliminarPersonal/${id}`, { method: 'DELETE' }, null);
-    
+
     if (cachePersonal) {
       cachePersonal = cachePersonal.filter(p => p.idPersonal !== id);
     }
+    cacheAsociados = null;
     return true;
   },
 
   // vincula a un empleado con destino
   createAsociacion: async (asociacion) => {
-    return await fetchConFallback('/guardarTiene_asociado', {
+    const res = await fetchConFallback('/guardarTiene_asociado', {
       method: 'POST',
       body: JSON.stringify(asociacion)
     }, null);
+    cacheAsociados = null;
+    return res;
   },
 
   // elimina la vinculación entre un empleado y su destino asignada
   deleteAsociacion: async (idPersonal, idDestino) => {
-    return await fetchConFallback(`/deleteTiene_asociado/${idPersonal}/${idDestino}`, { 
-      method: 'DELETE' 
+    const res = await fetchConFallback(`/deleteTiene_asociado/${idPersonal}/${idDestino}`, {
+      method: 'DELETE'
     }, null);
+    cacheAsociados = null;
+    return res;
   }
 };

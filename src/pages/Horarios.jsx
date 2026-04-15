@@ -13,7 +13,6 @@ import destinosData from '../assets/destinos.json';
 
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-// Selección de rangos horarios
 const SelectorTiempo = ({ valor, onChange }) => {
   const [hora24, minutos] = valor ? valor.split(':').map(Number) : [8, 0];
 
@@ -61,16 +60,14 @@ export default function Horarios() {
   const [listaMaterias, setListaMaterias] = useState([]);
   const [listaHorariosDisponibles, setListaHorariosDisponibles] = useState([]);
   const [listaPersonal, setListaPersonal] = useState([]);
+  const [claseDetalle, setClaseDetalle] = useState(null);
 
-  // Estados para Asignaciones
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editando, setEditando] = useState(null);
 
-  // Estados para Horarios
   const [mostrarModalBase, setMostrarModalBase] = useState(false);
   const [editandoBase, setEditandoBase] = useState(null);
   const [formBase, setFormBase] = useState({ idHorario: '', dias: 'Lunes', horaInicio: '08:00', horaFin: '10:00' });
-  const [errorIdBase, setErrorIdBase] = useState('');
   const [filtroDiaBase, setFiltroDiaBase] = useState('');
   const [inputMateria, setInputMateria] = useState('');
   const [inputDestino, setInputDestino] = useState('');
@@ -79,55 +76,58 @@ export default function Horarios() {
   const [focoDestino, setFocoDestino] = useState(false);
   const [focoDocente, setFocoDocente] = useState(false);
   const [filtroDia, setFiltroDia] = useState('');
+  const rolUsuario = localStorage.getItem('rol') || '';
+  const esAdmin = rolUsuario.toUpperCase() === 'ADMINISTRADOR' || rolUsuario.toUpperCase() === 'ADMIN';
+
   const estadoInicial = { idAsignacion: '', codMateria: '', idHorarios: [], idDestino: '', docentes: [] };
   const [formData, setFormData] = useState(estadoInicial);
-// carga inicial de dependencias y registros de asignación
-  const cargarDatos = async () => {
-    setCargando(true);
-    try {
-      const [dataMaterias, dataAsignaciones, dataPersonal, dataHorariosBase] = await Promise.all([
-        materiasService.getAll(),
-        horariosService.getAll(),
-        personalService.getAll(),
-        horariosService.getAllHorariosBase()
-      ]);
 
-      setListaMaterias(dataMaterias);
-      setListaPersonal(dataPersonal);
-      setAsignaciones(dataAsignaciones);
-      setListaHorariosDisponibles(dataHorariosBase);
-    } catch (e) {
-      console.error("Error cargando datos:", e);
-    }
-    setCargando(false);
-  };
+  const cargarDatos = async () => {
+      setCargando(true);
+      try {
+        const [dataMaterias, dataAsignaciones, dataPersonal, dataHorariosBase, dataEstas] = await Promise.all([
+          materiasService.getAll(),
+          horariosService.getAll(),
+          personalService.getAll(),
+          horariosService.getAllHorariosBase(),
+          horariosService.getEstas()
+        ]);
+
+        setListaMaterias(dataMaterias);
+        setListaPersonal(dataPersonal);
+        setListaHorariosDisponibles(dataHorariosBase);
+
+        const asignacionesConDocentes = dataAsignaciones.map(asig => {
+          const profesAsignados = dataEstas
+            .filter(relacion => String(relacion.idAsignacion) === String(asig.idAsignacion))
+            .map(relacion => String(relacion.idPersonal));
+
+          return {
+            ...asig,
+            docentes: profesAsignados
+          };
+        });
+
+        setAsignaciones(asignacionesConDocentes);
+
+      } catch (e) {
+        console.error("Error cargando datos:", e);
+      }
+      setCargando(false);
+    };
 
   useEffect(() => { cargarDatos(); }, []);
-// valida que el ID sea unico
-  const manejarCambioIdBase = (e) => {
-    const valor = e.target.value;
-    setFormBase({ ...formBase, idHorario: valor });
 
-    if (!valor.trim()) {
-      setErrorIdBase('El ID es obligatorio.');
-    } else if (!editandoBase && listaHorariosDisponibles.some(h => String(h.idHorario).toLowerCase() === String(valor).toLowerCase())) {
-      setErrorIdBase('Este ID ya está en uso.');
-    } else {
-      setErrorIdBase('');
-    }
-  };
-
-  // procesa el guardado de asignaciones simples o múltiples
   const handleSubmit = async (e) => {
     e.preventDefault();
     setCargando(true);
 
-    const materiaCompleta = listaMaterias.find(m => m.codMateria === formData.codMateria);
-    const destinoCompleto = destinosData.find(d => d.idDestino === formData.idDestino);
+    const materiaCompleta = listaMaterias.find(m => String(m.codMateria) === String(formData.codMateria));
+    const destinoCompleto = destinosData.find(d => String(d.idDestino) === String(formData.idDestino));
 
     try {
       if (editando) {
-        const horarioCompleto = listaHorariosDisponibles.find(h => h.idHorario === formData.idHorarios[0]);
+        const horarioCompleto = listaHorariosDisponibles.find(h => String(h.idHorario) === String(formData.idHorarios[0]));
         const payload = {
           idAsignacion: formData.idAsignacion,
           materia: materiaCompleta,
@@ -136,38 +136,44 @@ export default function Horarios() {
         };
 
         await horariosService.update(formData.idAsignacion, payload);
-
-        const docentesViejos = editando.docentes || [];
-        const docentesNuevos = formData.docentes;
+        const docentesViejos = (editando.docentes || []).map(String);
+        const docentesNuevos = formData.docentes.map(String);
         const aBorrar = docentesViejos.filter(id => !docentesNuevos.includes(id));
         const aAgregar = docentesNuevos.filter(id => !docentesViejos.includes(id));
 
-        for (const idPersonal of aBorrar) await horariosService.deleteAsignacionProfesor(formData.idAsignacion, idPersonal);
-        for (const idPersonal of aAgregar) await horariosService.createAsignacionProfesor(formData.idAsignacion, idPersonal);
+        for (const idPersonal of aBorrar) {
+            await horariosService.deleteAsignacionProfesor(formData.idAsignacion, idPersonal);
+        }
+        for (const idPersonal of aAgregar) {
+            await horariosService.createAsignacionProfesor(formData.idAsignacion, idPersonal);
+        }
 
         Swal.fire({ title: '¡Éxito!', text: 'Asignación actualizada.', icon: 'success', timer: 2000 });
       } else {
-        const promesasDeGuardado = formData.idHorarios.map(async (idHorario, index) => {
-          const horarioCompleto = listaHorariosDisponibles.find(h => h.idHorario === idHorario);
-          const idFinal = formData.idHorarios.length > 1 ? `${formData.idAsignacion}-${index + 1}` : formData.idAsignacion;
-          const payload = { idAsignacion: idFinal, materia: materiaCompleta, horario: horarioCompleto, destino: destinoCompleto };
+        for (const idHorario of formData.idHorarios) {
+          const horarioCompleto = listaHorariosDisponibles.find(h => String(h.idHorario) === String(idHorario));
+          const payload = { materia: materiaCompleta, horario: horarioCompleto, destino: destinoCompleto };
 
-          await horariosService.create(payload);
-          for (const idPersonal of formData.docentes) await horariosService.createAsignacionProfesor(idFinal, idPersonal);
-        });
+          const nuevaAsignacion = await horariosService.create(payload);
 
-        await Promise.all(promesasDeGuardado);
+          if (nuevaAsignacion && nuevaAsignacion.idAsignacion) {
+            for (const idPersonal of formData.docentes) {
+              await horariosService.createAsignacionProfesor(nuevaAsignacion.idAsignacion, idPersonal);
+            }
+          }
+        }
+
         Swal.fire({ title: '¡Éxito!', text: 'Clases asignadas.', icon: 'success', timer: 2000 });
       }
       cerrarModal();
       cargarDatos();
     } catch (error) {
-       Swal.fire({ title: 'Error', text: 'No se pudo guardar la asignación.', icon: 'error' });
+       Swal.fire({ title: 'Error', text: error.message || 'No se pudo guardar la asignación.', icon: 'error' });
     } finally {
       setCargando(false);
     }
   };
-// elimina una asignación
+
   const handleEliminar = async (clase) => {
     Swal.fire({
       title: '¿Estás seguro?', text: "Se eliminará esta asignación.", icon: 'warning', showCancelButton: true,
@@ -189,7 +195,7 @@ export default function Horarios() {
       }
     });
   };
-// Formulario para la modificación de una clase existente
+
   const abrirEdicion = (asig) => {
     setEditando(asig);
     setFormData({
@@ -206,7 +212,7 @@ export default function Horarios() {
     setMostrarModal(false); setEditando(null); setFormData(estadoInicial);
     setInputMateria(''); setInputDestino(''); setInputDocente(''); setFiltroDia('');
   };
-// permite la selección múltiple de turnos para una misma asignación
+
   const toggleHorario = (idHorario, estaOcupado) => {
     if (estaOcupado) return;
     if (editando) { setFormData({ ...formData, idHorarios: [idHorario] }); }
@@ -216,7 +222,7 @@ export default function Horarios() {
       else setFormData({ ...formData, idHorarios: [...formData.idHorarios, idHorario] });
     }
   };
-// filtra y ordena cronológicamente las clases correspondientes a un día específico
+
   const clasesDelDia = (dia) => {
     return asignaciones.filter(a => a.horario?.dias === dia || a.horario?.dia === dia).filter(a => {
         if (!busquedaGrilla) return true;
@@ -238,38 +244,37 @@ export default function Horarios() {
     if (!timeStr) return '';
     return timeStr.length === 5 ? `${timeStr}:00` : timeStr;
   };
-// Almacenamiento de turnos en el sistema
+
   const handleGuardarBase = async (e) => {
     e.preventDefault();
-    if (!formBase.idHorario || !formBase.horaInicio || !formBase.horaFin || errorIdBase) return;
+    if (!formBase.horaInicio || !formBase.horaFin) return;
 
     setCargando(true);
     try {
       const payload = {
-        idHorario: formBase.idHorario,
         dias: formBase.dias,
         horaInicio: formatTime(formBase.horaInicio),
         horaFin: formatTime(formBase.horaFin)
       };
 
       if (editandoBase) {
+        payload.idHorario = formBase.idHorario;
         await horariosService.updateHorario(formBase.idHorario, payload);
       } else {
         await horariosService.createHorario(payload);
       }
 
       Swal.fire({ toast: true, position: 'bottom-end', icon: 'success', title: 'Turno guardado', showConfirmButton: false, timer: 2000 });
-        setFormBase({ idHorario: '', dias: 'Lunes', horaInicio: '08:00', horaFin: '10:00' });
-        setEditandoBase(null);
-        setErrorIdBase('');
-        cargarDatos();
+      setFormBase({ idHorario: '', dias: 'Lunes', horaInicio: '08:00', horaFin: '10:00' });
+      setEditandoBase(null);
+      cargarDatos();
     } catch (error) {
-      Swal.fire('Error', 'No se pudo guardar el turno.', 'error');
+      Swal.fire('Error', error.message || 'No se pudo guardar el turno.', 'warning');
     } finally {
       setCargando(false);
     }
   };
-// elimina un turno siempre que no tenga clases activas vinculadas
+
   const handleEliminarBase = async (idHorario) => {
     if (asignaciones.some(a => a.horario?.idHorario === idHorario)) {
        Swal.fire('No permitido', 'Este turno base está siendo usado por una clase. Eliminala primero.', 'warning');
@@ -292,9 +297,7 @@ export default function Horarios() {
   const abrirEdicionBase = (hb) => {
     setEditandoBase(hb);
     setFormBase({ idHorario: hb.idHorario, dias: hb.dias || hb.dia, horaInicio: hb.horaInicio.substring(0,5), horaFin: hb.horaFin.substring(0,5) });
-    setErrorIdBase('');
   };
-
 
   return (
     <div className="space-y-6 h-full flex flex-col p-2">
@@ -306,23 +309,26 @@ export default function Horarios() {
           <p className="text-slate-500 text-sm">Vincula materias con horarios y aulas existentes.</p>
         </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => setMostrarModalBase(true)}
-            className="bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-all"
-          >
-            <Settings size={18} /> Turnos
-          </button>
+        {/* Vista de edicion para Admins */}
+        {esAdmin && (
+          <div className="flex gap-3">
+            <button
+              onClick={() => setMostrarModalBase(true)}
+              className="bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-all"
+            >
+              <Settings size={18} /> Turnos
+            </button>
 
-          <button
-            onClick={() => { cerrarModal(); setMostrarModal(true); }}
-            className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-indigo-700 flex items-center gap-2 shadow-md shadow-indigo-100 transition-all"
-          >
-            <Plus size={20} /> Nueva Asignación
-          </button>
-        </div>
+            <button
+              onClick={() => { cerrarModal(); setMostrarModal(true); }}
+              className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-indigo-700 flex items-center gap-2 shadow-md shadow-indigo-100 transition-all"
+            >
+              <Plus size={20} /> Nueva Asignación
+            </button>
+          </div>
+        )}
       </div>
-        {/* barra de búsqueda para filtrar la grilla horaria */}
+
       <div className="flex justify-start">
         <div className="bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm w-full max-w-xl">
           <div className="relative w-full">
@@ -337,7 +343,7 @@ export default function Horarios() {
           </div>
         </div>
       </div>
-        {/* grilla interactiva organizada por días de la semana */}
+
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 overflow-x-auto">
         {cargando ? (
           <div className="flex items-center justify-center h-64 text-slate-500 font-medium animate-pulse">Cargando datos...</div>
@@ -351,14 +357,19 @@ export default function Horarios() {
                     <h3 className="font-bold text-slate-700 uppercase tracking-wide text-sm">{dia}</h3>
                     <span className="text-xs text-slate-500">{clases.length} clases</span>
                   </div>
-
                   <div className="p-3 flex flex-col gap-3">
                     {clases.map(clase => (
-                      <div key={clase.idAsignacion} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm border-l-4 border-l-indigo-500 hover:shadow-md hover:-translate-y-0.5 transition-all group relative">
-                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-lg p-1 shadow-sm border border-slate-100 z-10">
-                          <button onClick={() => abrirEdicion(clase)} className="p-1 text-slate-400 hover:text-indigo-600 rounded bg-white"><Edit2 size={14} /></button>
-                          <button onClick={() => handleEliminar(clase)} className="p-1 text-slate-400 hover:text-rose-600 rounded bg-white"><Trash2 size={14} /></button>
-                        </div>
+                      <div
+                        key={clase.idAsignacion}
+                        onClick={() => setClaseDetalle(clase)}
+                        className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm border-l-4 border-l-indigo-500 hover:shadow-md hover:-translate-y-0.5 transition-all group relative cursor-pointer"
+                      >
+                        {esAdmin && (
+                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur rounded-lg p-1 shadow-sm border border-slate-100 z-10">
+                            <button onClick={(e) => { e.stopPropagation(); abrirEdicion(clase); }} className="p-1 text-slate-400 hover:text-indigo-600 rounded bg-white"><Edit2 size={14} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleEliminar(clase); }} className="p-1 text-slate-400 hover:text-rose-600 rounded bg-white"><Trash2 size={14} /></button>
+                          </div>
+                        )}
 
                         <div className="flex flex-col gap-2">
                           <span className="text-xs font-bold text-indigo-600 bg-indigo-50 w-fit px-2 py-0.5 rounded flex items-center gap-1">
@@ -368,22 +379,6 @@ export default function Horarios() {
                           <h4 className="font-bold text-slate-800 leading-tight pr-8">
                             {clase.materia?.nombreMateria || 'Materia desconocida'}
                           </h4>
-                          <span className="text-xs font-medium text-slate-500 flex items-center gap-1 bg-slate-100 w-fit px-2 py-1 rounded-md">
-                            <MapPin size={12} /> {clase.destino?.nombreDestino || clase.destino?.idDestino || 'Sin aula'}
-                          </span>
-                          {clase.docentes && clase.docentes.length > 0 && (
-                            <div className="flex items-center gap-1 mt-1 flex-wrap">
-                              <Users size={12} className="text-slate-400" />
-                              {clase.docentes.map(idDoc => {
-                                const p = listaPersonal.find(pers => pers.idPersonal === idDoc);
-                                return p ? (
-                                  <span key={idDoc} className="text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-full">
-                                    {p.apellidoPersonal}, {p.nombrePersonal.charAt(0)}.
-                                  </span>
-                                ) : null;
-                              })}
-                            </div>
-                          )}
                         </div>
                       </div>
                     ))}
@@ -400,7 +395,7 @@ export default function Horarios() {
         )}
       </div>
 
-     {/* Nueva signación */}
+      {/* Modal Nueva Asignación  */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl border border-slate-100 max-h-[95vh] overflow-y-auto mt-4 sm:mt-0 relative">
@@ -415,21 +410,6 @@ export default function Horarios() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Código de Asignación BASE <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text" required placeholder="Ej: A500"
-                  value={formData.idAsignacion}
-                  disabled={!!editando}
-                  onChange={e => setFormData({...formData, idAsignacion: e.target.value})}
-                  className={`w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono ${editando ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'}`}
-                />
-                {!editando && formData.idHorarios.length > 1 && (
-                  <p className="text-xs text-indigo-600 mt-2 font-medium">Se crearán múltiples clases (ej: {formData.idAsignacion}-1, {formData.idAsignacion}-2)</p>
-                )}
-              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="relative">
@@ -504,13 +484,29 @@ export default function Horarios() {
                   {horariosFiltrados.map(h => {
                     const seleccionado = formData.idHorarios.includes(h.idHorario);
                     const ocupadoPorAula = formData.idDestino && asignaciones.some(
-                      a => a.destino?.idDestino === formData.idDestino && a.horario?.idHorario === h.idHorario && a.idAsignacion !== formData.idAsignacion
+                      a => String(a.destino?.idDestino) === String(formData.idDestino) &&
+                           String(a.horario?.idHorario) === String(h.idHorario) &&
+                           String(a.idAsignacion) !== String(formData.idAsignacion)
                     );
+
                     const ocupadoPorMateria = formData.codMateria && asignaciones.some(
-                      a => a.materia?.codMateria === formData.codMateria && a.horario?.idHorario === h.idHorario && a.idAsignacion !== formData.idAsignacion
+                      a => String(a.materia?.codMateria) === String(formData.codMateria) &&
+                           String(a.horario?.idHorario) === String(h.idHorario) &&
+                           String(a.idAsignacion) !== String(formData.idAsignacion)
                     );
-                    const estaOcupado = ocupadoPorAula || ocupadoPorMateria;
-                    const motivoOcupacion = ocupadoPorAula ? 'Aula Ocupada' : 'Materia ya agendada';
+
+                    const ocupadoPorDocente = formData.docentes && formData.docentes.length > 0 && asignaciones.some(
+                      a => String(a.horario?.idHorario) === String(h.idHorario) &&
+                           String(a.idAsignacion) !== String(formData.idAsignacion) &&
+                           a.docentes?.some(idDoc => formData.docentes.map(String).includes(String(idDoc)))
+                    );
+
+                    const estaOcupado = ocupadoPorAula || ocupadoPorMateria || ocupadoPorDocente;
+
+                    let motivoOcupacion = '';
+                    if (ocupadoPorAula) motivoOcupacion = 'Aula Ocupada';
+                    else if (ocupadoPorMateria) motivoOcupacion = 'Materia ya agendada';
+                    else if (ocupadoPorDocente) motivoOcupacion = 'Profesor ocupado';
 
                     return (
                       <div
@@ -544,13 +540,20 @@ export default function Horarios() {
                   <Users size={18} className="text-indigo-500" /> Profesores asignados a esta clase
                 </label>
 
+                {/* Profesores ya asignados*/}
                 <div className="flex flex-wrap gap-2 mb-3">
                   {formData.docentes.map(id => {
-                    const p = listaPersonal.find(pers => pers.idPersonal === id);
+                    const p = listaPersonal.find(pers => String(pers.idPersonal) === String(id));
                     return p ? (
                       <span key={id} className="bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full text-xs font-bold border border-emerald-200 flex items-center gap-2">
                         {p.apellidoPersonal}, {p.nombrePersonal}
-                        <button type="button" onClick={() => setFormData({...formData, docentes: formData.docentes.filter(d => d !== id)})} className="hover:text-rose-600 text-emerald-500 font-black text-lg leading-none">×</button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({...formData, docentes: formData.docentes.filter(d => String(d) !== String(id))})}
+                          className="hover:text-rose-600 text-emerald-500 font-black text-lg leading-none"
+                        >
+                          ×
+                        </button>
                       </span>
                     ) : null;
                   })}
@@ -568,10 +571,11 @@ export default function Horarios() {
                         className="w-full pl-9 pr-3 p-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                      />
                   </div>
+
                   {focoDocente && (
                     <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-40 overflow-y-auto">
                       {listaPersonal
-                        .filter(p => !formData.docentes.includes(p.idPersonal))
+                        .filter(p => !formData.docentes.map(String).includes(String(p.idPersonal)))
                         .filter(p => `${p.apellidoPersonal} ${p.nombrePersonal}`.toLowerCase().includes(inputDocente.toLowerCase()))
                         .map(p => (
                           <li
@@ -595,7 +599,7 @@ export default function Horarios() {
                 <button type="button" onClick={cerrarModal} className="flex-1 px-6 py-3 text-slate-500 font-bold bg-slate-100 rounded-2xl hover:bg-slate-200 transition-colors">Cancelar</button>
                 <button
                   type="submit"
-                  disabled={!formData.idAsignacion || !formData.codMateria || !formData.idDestino || formData.idHorarios.length === 0}
+                  disabled={!formData.codMateria || !formData.idDestino || formData.idHorarios.length === 0}
                   className="flex-1 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:grayscale"
                 >
                   Confirmar Asignación
@@ -606,7 +610,7 @@ export default function Horarios() {
         </div>
       )}
 
-      {/* Gestion de Horarios */}
+      {/* Modal Turnos */}
       {mostrarModalBase && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-slate-100 flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
@@ -661,26 +665,11 @@ export default function Horarios() {
 
             <div className="w-full md:w-80 p-6 bg-white flex flex-col relative">
                <div className="flex justify-between items-center mb-6">
-
                  <h3 className="font-bold text-slate-800">{editandoBase ? 'Editar Turno' : 'Nuevo Turno'}</h3>
                  <button onClick={() => setMostrarModalBase(false)} className="hidden md:block p-2 hover:bg-rose-100 hover:text-rose-600 text-slate-400 rounded-full transition-colors"><X size={16}/></button>
                </div>
 
                <form onSubmit={handleGuardarBase} className="space-y-4 flex-1">
-                <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1">ID del Turno <span className="text-rose-500">*</span></label>
-                    <input
-                      type="text"
-                      value={formBase.idHorario}
-                      disabled={!!editandoBase}
-                      onChange={manejarCambioIdBase}
-                      className={`w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm ${
-                        errorIdBase ? 'bg-rose-50 border-rose-400 text-rose-900' : 'bg-slate-50 border-slate-200'
-                      }`}
-                      placeholder="Ej: H200"
-                    />
-                    {errorIdBase && <p className="text-xs text-rose-500 mt-1.5 font-medium">{errorIdBase}</p>}
-                 </div>
 
                  <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1">Día <span className="text-rose-500">*</span></label>
@@ -708,11 +697,11 @@ export default function Horarios() {
 
                  <div className="pt-6 mt-auto">
                     {editandoBase && (
-                              <button type="button" onClick={() => { setEditandoBase(null); setFormBase({ idHorario: '', dias: 'Lunes', horaInicio: '08:00', horaFin: '10:00' }); setErrorIdBase(''); }} className="w-full mb-2 py-2 text-sm font-bold text-slate-500 hover:text-slate-700">Cancelar Edición</button>
+                              <button type="button" onClick={() => { setEditandoBase(null); setFormBase({ idHorario: '', dias: 'Lunes', horaInicio: '08:00', horaFin: '10:00' }); }} className="w-full mb-2 py-2 text-sm font-bold text-slate-500 hover:text-slate-700">Cancelar Edición</button>
                     )}
                     <button
                       type="submit"
-                      disabled={!!errorIdBase || !formBase.idHorario}
+                      disabled={!formBase.horaInicio || !formBase.horaFin}
                       className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all flex justify-center gap-2 items-center disabled:opacity-50 disabled:grayscale"
                     >
                        {editandoBase ? <Edit2 size={16}/> : <Plus size={16}/>}
@@ -721,6 +710,76 @@ export default function Horarios() {
                  </div>
                </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalle de Clase*/}
+      {claseDetalle && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setClaseDetalle(null)}>
+          <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-sm shadow-2xl border border-slate-100 relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setClaseDetalle(null)} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-full transition-colors">
+              <X size={20} />
+            </button>
+
+            <h3 className="text-xl font-bold text-slate-800 mb-6 pr-8 leading-tight">
+              {claseDetalle.materia?.nombreMateria || 'Materia desconocida'}
+            </h3>
+
+            <div className="space-y-5">
+              <div className="flex items-center gap-4 text-slate-600">
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><Clock size={20} /></div>
+                <div>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-wide">Horario</p>
+                  <p className="font-bold text-slate-700">{claseDetalle.horario?.dias || claseDetalle.horario?.dia} • {claseDetalle.horario?.horaInicio?.substring(0,5)} a {claseDetalle.horario?.horaFin?.substring(0,5)}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-slate-600">
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><MapPin size={20} /></div>
+                <div>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-wide">Aula / Laboratorio</p>
+                  <p className="font-bold text-slate-700">{claseDetalle.destino?.nombreDestino || claseDetalle.destino?.idDestino || 'Sin asignar'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 text-slate-600">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0"><Users size={20} /></div>
+                <div>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-wide mb-1">Docentes Asignados</p>
+                  {claseDetalle.docentes && claseDetalle.docentes.length > 0 ? (
+                    <ul className="space-y-1">
+                      {claseDetalle.docentes.map(idDoc => {
+                        const p = listaPersonal.find(pers => String(pers.idPersonal) === String(idDoc));
+                        return p ? (
+                          <li key={idDoc} className="font-bold text-sm text-slate-700">
+                            • {p.nombrePersonal} {p.apellidoPersonal}
+                          </li>
+                        ) : null;
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="font-medium text-sm italic text-slate-400">Sin profesores asignados</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {esAdmin && (
+              <div className="mt-8 pt-4 border-t border-slate-100 flex gap-2">
+                <button
+                  onClick={() => {
+                    const claseSeleccionada = claseDetalle;
+                    setClaseDetalle(null);
+                    abrirEdicion(claseSeleccionada);
+                  }}
+                  className="w-full bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 py-3 rounded-xl font-bold flex justify-center items-center gap-2 transition-colors border border-slate-100"
+                >
+                  <Edit2 size={16} /> Editar esta clase
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
       )}
