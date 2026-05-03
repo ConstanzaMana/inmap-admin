@@ -12,11 +12,18 @@ import destinosData from '../assets/destinos.json';
 
 const LISTA_CARGOS = [
   'Profesor con dedicación simple',
-  'Profesor titular',
+  'Profesor con dedicación exclusiva',
   'JTP',
   'Ayudante'
 ];
-
+const normalizarTexto = (texto) => {
+      if (!texto) return '';
+      return texto
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+};
 export default function Personal() {
   const [personal, setPersonal] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -77,14 +84,19 @@ export default function Personal() {
 
   useEffect(() => { cargarDatos(); }, []);
 
-  const personalFiltrado = personal.filter(p => {
-    const termino = busqueda.toLowerCase();
-    const nombreCompleto = `${p.nombrePersonal} ${p.apellidoPersonal}`.toLowerCase();
-    return (
-      nombreCompleto.includes(termino) ||
-      String(p.dni).includes(termino)
-    );
-  });
+const personalFiltrado = personal
+    .filter(p => {
+      const termino = normalizarTexto(busqueda);
+      const nombreCompleto = normalizarTexto(`${p.nombrePersonal} ${p.apellidoPersonal}`);
+
+      return (
+        nombreCompleto.includes(termino) ||
+        String(p.dni).includes(termino)
+      );
+    })
+    .sort((a, b) => {
+      return a.apellidoPersonal.localeCompare(b.apellidoPersonal, 'es', { sensitivity: 'base' });
+    });
 
   const validarCampo = (campo, valor) => {
     let errorMsg = '';
@@ -289,16 +301,20 @@ export default function Personal() {
                         {p.dni ? Number(p.dni).toLocaleString('es-AR') : '-'}
                       </span>
                     </td>
-                    <td className="p-4 text-slate-600 align-top pt-4">
-                      {p.oficina ? (
-                        <span className="inline-flex items-start gap-1.5 text-sm bg-slate-50 px-3 py-2 rounded-lg leading-snug max-w-[250px] border border-slate-100 group-hover:bg-white transition-colors">
-                          <MapPin size={15} className="text-slate-400 shrink-0 mt-0.5" />
-                          <span className="font-medium">{p.oficina}</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 text-sm italic inline-block mt-1">Sin asignar</span>
-                      )}
-                    </td>
+                        <td className="p-4 text-slate-600 align-top pt-4">
+                                {p.oficina ? (
+                                  <span className="inline-flex items-start gap-1.5 text-sm bg-slate-50 px-3 py-2 rounded-lg leading-snug max-w-[250px] border border-slate-100 group-hover:bg-white transition-colors">
+                                    <MapPin size={15} className="text-slate-400 shrink-0 mt-0.5" />
+                                    <span className="font-medium">{p.oficina}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-sm italic inline-block mt-1">
+                                    {normalizarTexto(p.cargoLaboral).includes('dedicacion simple')
+                                      ? 'Sin Oficina (Ded. Simple)'
+                                      : 'Sin asignar'}
+                                  </span>
+                                )}
+                              </td>
 
                     {esAdmin && (
                       <td className="p-4 text-right align-top pt-4">
@@ -390,21 +406,25 @@ export default function Personal() {
 
                   {focoCargo && (
                     <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                      {LISTA_CARGOS
-                        .filter(c => c.toLowerCase().includes(formData.cargoLaboral.toLowerCase()))
-                        .map((cargo, i) => (
-                          <li
-                            key={i}
-                            onMouseDown={() => {
-                                setFormData({...formData, cargoLaboral: cargo});
-                                setErrores(prev => ({...prev, cargoLaboral: ''}));
-                            }}
-                            className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-slate-700 font-medium text-sm transition-colors"
-                          >
-                            {cargo}
-                          </li>
-                      ))}
-                    </ul>
+                       {LISTA_CARGOS
+                         .filter(c => {
+                           const busquedaLimpia = normalizarTexto(formData.cargoLaboral);
+                           const cargoLimpio = normalizarTexto(c);
+                           return cargoLimpio.includes(busquedaLimpia);
+                         })
+                         .map((cargo, i) => (
+                           <li
+                             key={i}
+                             onMouseDown={() => {
+                                 setFormData({...formData, cargoLaboral: cargo});
+                                 setErrores(prev => ({...prev, cargoLaboral: ''}));
+                             }}
+                             className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-slate-700 font-medium text-sm transition-colors"
+                           >
+                             {cargo}
+                           </li>
+                       ))}
+                     </ul>
                   )}
                 </div>
               </div>
@@ -423,7 +443,11 @@ export default function Personal() {
                 {focoOficina && (
                   <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
                     {listaDestinos
-                      .filter(d => d.toLowerCase().includes(formData.oficina.toLowerCase()))
+                      .filter(d => {
+                        const busquedaLimpia = normalizarTexto(formData.oficina);
+                        const destinoLimpio = normalizarTexto(d);
+                        return destinoLimpio.includes(busquedaLimpia);
+                      })
                       .map((destino, i) => (
                         <li
                           key={i}

@@ -3,10 +3,10 @@
  * la seguridad mediante tokens y el control de sesiones activas.
  */
 
-// URL base para las peticiones a la API del sistema
-export const API_BASE_URL = "/api";
+// URL base para las peticiones a la API del sistema en Render
+export const API_BASE_URL = "https://restful-api-inmap.onrender.com";
 
-//realiza peticiones http y usa datos locales en caso de fallo.
+// realiza peticiones http y usa datos locales en caso de fallo.
 export const fetchConFallback = async (endpoint, options = {}, fallbackData = null) => {
   try {
     const controller = new AbortController();
@@ -16,8 +16,6 @@ export const fetchConFallback = async (endpoint, options = {}, fallbackData = nu
     // Encabezados estándar para comunicación
     const headers = {
       'Content-Type': 'application/json',
-      'Bypass-Tunnel-Reminder': 'true',
-      'ngrok-skip-browser-warning': 'true',
       ...options.headers
     };
 
@@ -63,8 +61,12 @@ export const fetchConFallback = async (endpoint, options = {}, fallbackData = nu
         return null;
     }
 
-    const data = await response.json();
-    return data;
+    const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          return await response.json();
+        } else {
+          return await response.text();
+        }
 
   } catch (error) {
     if (fallbackData !== null) {

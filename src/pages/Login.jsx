@@ -5,6 +5,7 @@
  */
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import Swal from 'sweetalert2';
 import logo from "../assets/logo.png";
 import { API_BASE_URL } from '../api/apiConfig';
@@ -13,6 +14,7 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   // procesa la validación de credenciales con el servidor
@@ -25,8 +27,7 @@ export default function Login() {
         const response = await fetch(`${API_BASE_URL}/login`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             username: username,
@@ -139,14 +140,27 @@ export default function Login() {
               <label htmlFor="password" className="block text-sm font-bold text-slate-700">
                 Contraseña
               </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 transition-all font-medium text-slate-800"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 transition-all font-medium text-slate-800 pr-12" // Agregamos padding a la derecha para que el texto no pise el ojo
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-500 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* acción de envío con estado de carga */}

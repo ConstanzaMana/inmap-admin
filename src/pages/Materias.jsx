@@ -30,12 +30,23 @@ export default function Materias() {
   };
 
   useEffect(() => { cargarDatos(); }, []);
-
+  const normalizarTexto = (texto) => {
+    if (!texto) return '';
+    return texto
+      .toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  };
   // lógica de filtrado para la tabla de resultados
-  const materiasFiltradas = materias.filter(m =>
-    m.nombreMateria.toLowerCase().includes(busqueda.toLowerCase()) ||
-    m.codMateria.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  const materiasFiltradas = materias.filter(m => {
+    const busquedaLimpia = normalizarTexto(busqueda);
+    const nombreLimpio = normalizarTexto(m.nombreMateria);
+    const codigoLimpio = normalizarTexto(m.codMateria);
+
+    return nombreLimpio.includes(busquedaLimpia) || codigoLimpio.includes(busquedaLimpia);
+  });
+
 
   // valida la disponibilidad del código de materia antes de registrar una nueva
   const manejarCambioCodigo = (e) => {
@@ -55,35 +66,52 @@ export default function Materias() {
   };
 
   // gestiona el envío de datos para creación o actualización de registros
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (errorCodigo || errorNombre || formData.nombreMateria.trim().length < 3) return;
+    const handleSubmit = async (e) => {
+      e.preventDefault();
 
-    setCargando(true);
-    try {
-      if (editando) {
-        await materiasService.update(editando.codMateria, { nombreMateria: formData.nombreMateria });
-      } else {
-        await materiasService.create(formData);
+      if (cargando) return;
+
+      if (errorCodigo || errorNombre || formData.nombreMateria.trim().length < 3) return;
+
+      setCargando(true);
+      try {
+        if (editando) {
+          await materiasService.update(editando.codMateria, { nombreMateria: formData.nombreMateria });
+        } else {
+          await materiasService.create(formData);
+        }
+
+        Swal.fire({
+          title: '¡éxito!',
+          text: `la materia se ha ${editando ? 'actualizado' : 'guardado'} correctamente.`,
+          icon: 'success',
+          confirmButtonColor: '#4f46e5',
+          timer: 2000
+        });
+
+        setMostrarModal(false);
+        setEditando(null);
+        setFormData(estadoInicial);
+        cargarDatos();
+      } catch (error) {
+         let mensajeError = error.message || 'no se pudo completar la operación.';
+
+         if (mensajeError.includes('{')) {
+           try {
+             const jsonPart = mensajeError.substring(mensajeError.indexOf('{'));
+             const parsed = JSON.parse(jsonPart);
+
+             if (parsed && parsed.message) {
+               mensajeError = parsed.message;
+             }
+           } catch (e) {
+           }
+         }
+        Swal.fire({ title: 'Atención', text: mensajeError, icon: 'warning' });
+      } finally {
+        setCargando(false);
       }
-
-      Swal.fire({
-        title: '¡éxito!',
-        text: `la materia se ha ${editando ? 'actualizado' : 'guardado'} correctamente.`,
-        icon: 'success',
-        confirmButtonColor: '#4f46e5',
-        timer: 2000
-      });
-
-      setMostrarModal(false);
-      setEditando(null);
-      setFormData(estadoInicial);
-      cargarDatos();
-    } catch (error) {
-      Swal.fire({ title: 'error', text: 'no se pudo completar la operación.', icon: 'error' });
-      setCargando(false);
-    }
-  };
+    };
 
   // Elimina una materia
   const handleEliminar = async (codMateria) => {
@@ -228,17 +256,25 @@ export default function Materias() {
               <div>
                 <label htmlFor="codMateria" className="block text-sm font-bold text-slate-700 mb-1">
                       Código de Materia
-                 </label><input
-                 id="codMateria"
-                  type="text" required value={formData.codMateria}
+                 </label>
+                 <input
+                  id="codMateria"
+                  type="text"
+                  required
+                  value={formData.codMateria}
                   disabled={!!editando}
+                  maxLength={3}
                   onChange={manejarCambioCodigo}
                   className={`w-full p-2.5 border rounded-xl outline-none font-mono transition-colors ${
                     errorCodigo ? 'bg-rose-50 border-rose-400 text-rose-900' : 'bg-slate-50 border-slate-200'
                   }`}
                   placeholder="Ej: 633"
                 />
-                {errorCodigo && <p className="text-xs text-rose-500 mt-1.5 font-medium">{errorCodigo}</p>}
+                {errorCodigo ? (
+                  <p className="text-xs text-rose-500 mt-1.5 font-medium">{errorCodigo}</p>
+                ) : (
+                  <p className="text-xs text-slate-400 mt-1.5">Máximo 3 caracteres.</p>
+                )}
               </div>
 
               {/* campo de nombre de la materia */}
@@ -268,4 +304,5 @@ export default function Materias() {
       )}
     </div>
   );
+
 }

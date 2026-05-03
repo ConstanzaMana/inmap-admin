@@ -11,6 +11,14 @@ import { materiasService } from '../api/materiaService.js';
 import { personalService } from '../api/personalService.js';
 import destinosData from '../assets/destinos.json';
 
+  const normalizarTexto = (texto) => {
+      if (!texto) return '';
+      return texto
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    };
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 const SelectorTiempo = ({ valor, onChange }) => {
@@ -119,60 +127,76 @@ export default function Horarios() {
   useEffect(() => { cargarDatos(); }, []);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setCargando(true);
+      e.preventDefault();
 
-    const materiaCompleta = listaMaterias.find(m => String(m.codMateria) === String(formData.codMateria));
-    const destinoCompleto = destinosData.find(d => String(d.idDestino) === String(formData.idDestino));
+      if (cargando) return;
 
-    try {
-      if (editando) {
-        const horarioCompleto = listaHorariosDisponibles.find(h => String(h.idHorario) === String(formData.idHorarios[0]));
-        const payload = {
-          idAsignacion: formData.idAsignacion,
-          materia: materiaCompleta,
-          horario: horarioCompleto,
-          destino: destinoCompleto
-        };
+      setCargando(true);
 
-        await horariosService.update(formData.idAsignacion, payload);
-        const docentesViejos = (editando.docentes || []).map(String);
-        const docentesNuevos = formData.docentes.map(String);
-        const aBorrar = docentesViejos.filter(id => !docentesNuevos.includes(id));
-        const aAgregar = docentesNuevos.filter(id => !docentesViejos.includes(id));
+      const materiaCompleta = listaMaterias.find(m => String(m.codMateria) === String(formData.codMateria));
+      const destinoCompleto = destinosData.find(d => String(d.idDestino) === String(formData.idDestino));
 
-        for (const idPersonal of aBorrar) {
-            await horariosService.deleteAsignacionProfesor(formData.idAsignacion, idPersonal);
-        }
-        for (const idPersonal of aAgregar) {
-            await horariosService.createAsignacionProfesor(formData.idAsignacion, idPersonal);
-        }
+      try {
+        if (editando) {
+          const horarioCompleto = listaHorariosDisponibles.find(h => String(h.idHorario) === String(formData.idHorarios[0]));
+          const payload = {
+            idAsignacion: formData.idAsignacion,
+            materia: materiaCompleta,
+            horario: horarioCompleto,
+            destino: destinoCompleto
+          };
 
-        Swal.fire({ title: '¡Éxito!', text: 'Asignación actualizada.', icon: 'success', timer: 2000 });
-      } else {
-        for (const idHorario of formData.idHorarios) {
-          const horarioCompleto = listaHorariosDisponibles.find(h => String(h.idHorario) === String(idHorario));
-          const payload = { materia: materiaCompleta, horario: horarioCompleto, destino: destinoCompleto };
+          await horariosService.update(formData.idAsignacion, payload);
+          const docentesViejos = (editando.docentes || []).map(String);
+          const docentesNuevos = formData.docentes.map(String);
+          const aBorrar = docentesViejos.filter(id => !docentesNuevos.includes(id));
+          const aAgregar = docentesNuevos.filter(id => !docentesViejos.includes(id));
 
-          const nuevaAsignacion = await horariosService.create(payload);
+          for (const idPersonal of aBorrar) {
+              await horariosService.deleteAsignacionProfesor(formData.idAsignacion, idPersonal);
+          }
+          for (const idPersonal of aAgregar) {
+              await horariosService.createAsignacionProfesor(formData.idAsignacion, idPersonal);
+          }
 
-          if (nuevaAsignacion && nuevaAsignacion.idAsignacion) {
-            for (const idPersonal of formData.docentes) {
-              await horariosService.createAsignacionProfesor(nuevaAsignacion.idAsignacion, idPersonal);
+          Swal.fire({ title: '¡Éxito!', text: 'Asignación actualizada.', icon: 'success', timer: 2000 });
+        } else {
+          for (const idHorario of formData.idHorarios) {
+            const horarioCompleto = listaHorariosDisponibles.find(h => String(h.idHorario) === String(idHorario));
+            const payload = { materia: materiaCompleta, horario: horarioCompleto, destino: destinoCompleto };
+
+            const nuevaAsignacion = await horariosService.create(payload);
+
+            if (nuevaAsignacion && nuevaAsignacion.idAsignacion) {
+              for (const idPersonal of formData.docentes) {
+                await horariosService.createAsignacionProfesor(nuevaAsignacion.idAsignacion, idPersonal);
+              }
             }
           }
-        }
 
-        Swal.fire({ title: '¡Éxito!', text: 'Clases asignadas.', icon: 'success', timer: 2000 });
+          Swal.fire({ title: '¡Éxito!', text: 'Clases asignadas.', icon: 'success', timer: 2000 });
+        }
+        cerrarModal();
+        cargarDatos();
+      } catch (error) {
+         let mensajeError = error.message || 'No se pudo guardar la asignación.';
+
+         if (mensajeError.includes('{')) {
+           try {
+             const jsonPart = mensajeError.substring(mensajeError.indexOf('{'));
+             const parsed = JSON.parse(jsonPart);
+
+             if (parsed && parsed.message) {
+               mensajeError = parsed.message;
+             }
+           } catch (e) {
+           }
+         }
+         Swal.fire({ title: 'Atención', text: mensajeError, icon: 'warning' });
+      } finally {
+        setCargando(false);
       }
-      cerrarModal();
-      cargarDatos();
-    } catch (error) {
-       Swal.fire({ title: 'Error', text: error.message || 'No se pudo guardar la asignación.', icon: 'error' });
-    } finally {
-      setCargando(false);
-    }
-  };
+    };
 
   const handleEliminar = async (clase) => {
     Swal.fire({
@@ -223,19 +247,19 @@ export default function Horarios() {
     }
   };
 
-  const clasesDelDia = (dia) => {
-    return asignaciones.filter(a => a.horario?.dias === dia || a.horario?.dia === dia).filter(a => {
-        if (!busquedaGrilla) return true;
-        const termino = busquedaGrilla.toLowerCase();
-        const matchMateria = a.materia?.nombreMateria?.toLowerCase().includes(termino) || a.materia?.codMateria?.toLowerCase().includes(termino);
-        const matchDestino = a.destino?.nombreDestino?.toLowerCase().includes(termino) || a.destino?.idDestino?.toLowerCase().includes(termino);
-        const matchDocente = a.docentes?.some(idDoc => {
-           const p = listaPersonal.find(pers => pers.idPersonal === idDoc);
-           return p && `${p.nombrePersonal} ${p.apellidoPersonal}`.toLowerCase().includes(termino);
-        });
-        return matchMateria || matchDestino || matchDocente;
-      }).sort((a, b) => (a.horario?.horaInicio || '').localeCompare(b.horario?.horaInicio || ''));
-  };
+    const clasesDelDia = (dia) => {
+        return asignaciones.filter(a => a.horario?.dias === dia || a.horario?.dia === dia).filter(a => {
+            if (!busquedaGrilla) return true;
+            const termino = normalizarTexto(busquedaGrilla);
+            const matchMateria = normalizarTexto(a.materia?.nombreMateria).includes(termino) || normalizarTexto(a.materia?.codMateria).includes(termino);
+            const matchDestino = normalizarTexto(a.destino?.nombreDestino).includes(termino) || normalizarTexto(a.destino?.idDestino).includes(termino);
+            const matchDocente = a.docentes?.some(idDoc => {
+               const p = listaPersonal.find(pers => pers.idPersonal === idDoc);
+               return p && normalizarTexto(`${p.nombrePersonal} ${p.apellidoPersonal}`).includes(termino);
+            });
+            return matchMateria || matchDestino || matchDocente;
+          }).sort((a, b) => (a.horario?.horaInicio || '').localeCompare(b.horario?.horaInicio || ''));
+      };
 
   const horariosFiltrados = listaHorariosDisponibles.filter(h => filtroDia === '' || (h.dias === filtroDia || h.dia === filtroDia));
   const horariosBaseFiltrados = listaHorariosDisponibles.filter(h => filtroDiaBase === '' || (h.dias === filtroDiaBase || h.dia === filtroDiaBase));
@@ -245,35 +269,51 @@ export default function Horarios() {
     return timeStr.length === 5 ? `${timeStr}:00` : timeStr;
   };
 
-  const handleGuardarBase = async (e) => {
-    e.preventDefault();
-    if (!formBase.horaInicio || !formBase.horaFin) return;
+ const handleGuardarBase = async (e) => {
+     e.preventDefault();
+     if (cargando) return;
 
-    setCargando(true);
-    try {
-      const payload = {
-        dias: formBase.dias,
-        horaInicio: formatTime(formBase.horaInicio),
-        horaFin: formatTime(formBase.horaFin)
-      };
+     if (!formBase.horaInicio || !formBase.horaFin) return;
 
-      if (editandoBase) {
-        payload.idHorario = formBase.idHorario;
-        await horariosService.updateHorario(formBase.idHorario, payload);
-      } else {
-        await horariosService.createHorario(payload);
-      }
+     setCargando(true);
+     try {
+       const payload = {
+         dias: formBase.dias,
+         horaInicio: formatTime(formBase.horaInicio),
+         horaFin: formatTime(formBase.horaFin)
+       };
 
-      Swal.fire({ toast: true, position: 'bottom-end', icon: 'success', title: 'Turno guardado', showConfirmButton: false, timer: 2000 });
-      setFormBase({ idHorario: '', dias: 'Lunes', horaInicio: '08:00', horaFin: '10:00' });
-      setEditandoBase(null);
-      cargarDatos();
-    } catch (error) {
-      Swal.fire('Error', error.message || 'No se pudo guardar el turno.', 'warning');
-    } finally {
-      setCargando(false);
-    }
-  };
+       if (editandoBase) {
+         payload.idHorario = formBase.idHorario;
+         await horariosService.updateHorario(formBase.idHorario, payload);
+       } else {
+         await horariosService.createHorario(payload);
+       }
+
+       Swal.fire({ toast: true, position: 'bottom-end', icon: 'success', title: 'Turno guardado', showConfirmButton: false, timer: 2000 });
+       setFormBase({ idHorario: '', dias: 'Lunes', horaInicio: '08:00', horaFin: '10:00' });
+       setEditandoBase(null);
+       cargarDatos();
+     } catch (error) {
+       let mensajeError = error.message || 'No se pudo guardar el turno.';
+
+       if (mensajeError.includes('{')) {
+         try {
+           const jsonPart = mensajeError.substring(mensajeError.indexOf('{'));
+           const parsed = JSON.parse(jsonPart);
+
+           if (parsed && parsed.message) {
+             mensajeError = parsed.message;
+           }
+         } catch (e) {
+         }
+       }
+       Swal.fire('Atención', mensajeError, 'warning');
+     } finally {
+       setCargando(false);
+     }
+   };
+
 
   const handleEliminarBase = async (idHorario) => {
     if (asignaciones.some(a => a.horario?.idHorario === idHorario)) {
@@ -294,10 +334,29 @@ export default function Horarios() {
     });
   };
 
-  const abrirEdicionBase = (hb) => {
+const abrirEdicionBase = (hb) => {
     setEditandoBase(hb);
-    setFormBase({ idHorario: hb.idHorario, dias: hb.dias || hb.dia, horaInicio: hb.horaInicio.substring(0,5), horaFin: hb.horaFin.substring(0,5) });
+    let inicioStr = typeof hb.horaInicio === 'string'
+      ? hb.horaInicio.substring(0, 5)
+      : Array.isArray(hb.horaInicio)
+        ? `${String(hb.horaInicio[0]).padStart(2, '0')}:${String(hb.horaInicio[1]).padStart(2, '0')}`
+        : '08:00';
+
+    let finStr = typeof hb.horaFin === 'string'
+      ? hb.horaFin.substring(0, 5)
+      : Array.isArray(hb.horaFin)
+        ? `${String(hb.horaFin[0]).padStart(2, '0')}:${String(hb.horaFin[1]).padStart(2, '0')}`
+        : '10:00';
+
+    setFormBase({
+      idHorario: hb.idHorario,
+      dias: hb.dias || hb.dia,
+      horaInicio: inicioStr,
+      horaFin: finStr
+    });
   };
+
+
 
   return (
     <div className="space-y-6 h-full flex flex-col p-2">
@@ -425,17 +484,23 @@ export default function Horarios() {
                       className={`w-full pl-9 pr-3 p-3 bg-slate-50 border rounded-xl outline-none transition-all ${formData.codMateria ? 'border-emerald-300 ring-1 ring-emerald-100 bg-emerald-50/30' : 'border-slate-200 focus:ring-2 focus:ring-indigo-500'}`}
                     />
                   </div>
-                  {focoMateria && (
-                    <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                      {listaMaterias
-                        .filter(m => m.nombreMateria.toLowerCase().includes(inputMateria.toLowerCase()) || m.codMateria.toLowerCase().includes(inputMateria.toLowerCase()))
-                        .map(m => (
-                          <li key={m.codMateria} onMouseDown={() => { setInputMateria(m.nombreMateria); setFormData({...formData, codMateria: m.codMateria}); }} className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-slate-700 text-sm">
-                            <span className="font-mono text-xs text-slate-400 mr-2">{m.codMateria}</span> {m.nombreMateria}
-                          </li>
-                      ))}
-                    </ul>
-                  )}
+                    {/* Lógica del desplegable de Materia */}
+                    {focoMateria && (
+                      <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                        {listaMaterias
+                          .filter(m => {
+                            const busquedaLimpia = normalizarTexto(inputMateria);
+                            const nombreLimpio = normalizarTexto(m.nombreMateria);
+                            const codigoLimpio = normalizarTexto(m.codMateria);
+                            return nombreLimpio.includes(busquedaLimpia) || codigoLimpio.includes(busquedaLimpia);
+                          })
+                          .map(m => (
+                            <li key={m.codMateria} onMouseDown={() => { setInputMateria(m.nombreMateria); setFormData({...formData, codMateria: m.codMateria}); }} className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-slate-700 text-sm">
+                              <span className="font-mono text-xs text-slate-400 mr-2">{m.codMateria}</span> {m.nombreMateria}
+                            </li>
+                        ))}
+                      </ul>
+                    )}
                 </div>
 
                 <div className="relative">
@@ -451,17 +516,21 @@ export default function Horarios() {
                       className={`w-full pl-9 pr-3 p-3 bg-slate-50 border rounded-xl outline-none transition-all ${formData.idDestino ? 'border-emerald-300 ring-1 ring-emerald-100 bg-emerald-50/30' : 'border-slate-200 focus:ring-2 focus:ring-indigo-500'}`}
                     />
                   </div>
-                  {focoDestino && (
-                    <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                      {destinosData
-                        .filter(d => (d.nombreDestino || d.idDestino).toLowerCase().includes(inputDestino.toLowerCase()))
-                        .map(d => (
-                          <li key={d.idDestino} onMouseDown={() => { setInputDestino(d.nombreDestino || d.idDestino); setFormData({...formData, idDestino: d.idDestino}); }} className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-slate-700 text-sm">
-                            {d.nombreDestino || d.idDestino}
-                          </li>
-                      ))}
-                    </ul>
-                  )}
+                    {focoDestino && (
+                      <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                        {destinosData
+                          .filter(d => {
+                            const busquedaLimpia = normalizarTexto(inputDestino);
+                            const destinoLimpio = normalizarTexto(d.nombreDestino || d.idDestino);
+                            return destinoLimpio.includes(busquedaLimpia);
+                          })
+                          .map(d => (
+                            <li key={d.idDestino} onMouseDown={() => { setInputDestino(d.nombreDestino || d.idDestino); setFormData({...formData, idDestino: d.idDestino}); }} className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-slate-700 text-sm">
+                              {d.nombreDestino || d.idDestino}
+                            </li>
+                        ))}
+                      </ul>
+                    )}
                 </div>
               </div>
 
@@ -572,26 +641,31 @@ export default function Horarios() {
                      />
                   </div>
 
-                  {focoDocente && (
-                    <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-40 overflow-y-auto">
-                      {listaPersonal
-                        .filter(p => !formData.docentes.map(String).includes(String(p.idPersonal)))
-                        .filter(p => `${p.apellidoPersonal} ${p.nombrePersonal}`.toLowerCase().includes(inputDocente.toLowerCase()))
-                        .map(p => (
-                          <li
-                            key={p.idPersonal}
-                            onMouseDown={() => {
-                               setFormData({...formData, docentes: [...formData.docentes, p.idPersonal]});
-                               setInputDocente('');
-                            }}
-                            className="px-4 py-2 hover:bg-emerald-50 cursor-pointer text-slate-700 text-sm flex justify-between"
-                          >
-                            <span><span className="font-bold">{p.apellidoPersonal}</span>, {p.nombrePersonal}</span>
-                            <span className="text-xs text-slate-400">{p.cargoLaboral}</span>
-                          </li>
-                      ))}
-                    </ul>
-                  )}
+ {focoDocente && (
+                     <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-40 overflow-y-auto">
+                       {listaPersonal
+                         .filter(p => !formData.docentes.map(String).includes(String(p.idPersonal)))
+                         .filter(p => {
+                            // Aplicamos la normalización al buscador de docentes
+                            const busquedaLimpia = normalizarTexto(inputDocente);
+                            const nombreLimpio = normalizarTexto(`${p.apellidoPersonal} ${p.nombrePersonal}`);
+                            return nombreLimpio.includes(busquedaLimpia);
+                         })
+                         .map(p => (
+                           <li
+                             key={p.idPersonal}
+                             onMouseDown={() => {
+                                setFormData({...formData, docentes: [...formData.docentes, p.idPersonal]});
+                                setInputDocente('');
+                             }}
+                             className="px-4 py-2 hover:bg-emerald-50 cursor-pointer text-slate-700 text-sm flex justify-between"
+                           >
+                             <span><span className="font-bold">{p.apellidoPersonal}</span>, {p.nombrePersonal}</span>
+                             <span className="text-xs text-slate-400">{p.cargoLaboral}</span>
+                           </li>
+                       ))}
+                     </ul>
+                   )}
                 </div>
               </div>
 

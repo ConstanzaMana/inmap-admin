@@ -55,8 +55,7 @@ export default function RestablecerPassword() {
         const response = await fetch(`${API_BASE_URL}/nuevaContraseña`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             token: token,

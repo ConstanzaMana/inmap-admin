@@ -25,8 +25,7 @@ export default function RecuperarPassword() {
         const response = await fetch(`${API_BASE_URL}/recuperarContraseña?data=${encodeURIComponent(inputData)}`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
+            'Content-Type': 'application/json'
           }
         });
 

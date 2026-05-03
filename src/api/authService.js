@@ -16,8 +16,7 @@ export const authService = {
         newPassword: newPassword
       }, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'ngrok-skip-browser-warning': 'true'
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -37,8 +36,7 @@ export const authService = {
       const response = await axios.post(`${API_BASE_URL}/register`, nuevoUsuario, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
+          'Content-Type': 'application/json'
         }
       });
       return response.data;
@@ -53,8 +51,7 @@ export const authService = {
       const token = localStorage.getItem('adminToken');
       const response = await axios.delete(`${API_BASE_URL}/eliminarUsuario/${username}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'ngrok-skip-browser-warning': 'true'
+          'Authorization': `Bearer ${token}`
         }
       });
       return response.data;

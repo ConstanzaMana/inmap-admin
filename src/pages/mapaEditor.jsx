@@ -128,27 +128,27 @@ export default function MapaEditor() {
   const esAdmin = rolUsuario.toUpperCase() === 'ADMINISTRADOR' || rolUsuario.toUpperCase() === 'ADMIN';
 
   // Sincroniza los datos geográficos y de destino con la api
-  const cargarDatosDelMapa = async () => {
-      setCargando(true);
-      try {
-        // 👇 Agregamos espService.getAll() a la lista de tareas
-        const [recintos, zonas, destinos, beacons] = await Promise.all([
-          mapaService.getRecintos(),
-          mapaService.getZonas(),
-          mapaService.getDestinos(),
-          espService.getAll() // <--- NUEVO
-        ]);
-        setGeoRecintos(convertirAGeoJSON(recintos, 'recinto', destinos));
-        setGeoZonas(convertirAGeoJSON(zonas, 'zona'));
+    const cargarDatosDelMapa = async () => {
+        setCargando(true);
+        try {
+          const [recintos, zonas, destinos, beacons] = await Promise.all([
+            mapaService.getRecintos(),
+            mapaService.getZonas(),
+            mapaService.getDestinos(),
+            espService.getAll()
+          ]);
 
-        // 👇 Convertimos las balizas reales a GeoJSON
-        setGeoEsp(convertirBalizasAGeoJSON(beacons));
+          setGeoRecintos(convertirAGeoJSON(recintos, 'recinto', destinos));
+          setGeoZonas(convertirAGeoJSON(zonas, 'zona'));
+          setGeoEsp(convertirBalizasAGeoJSON(beacons));
+          setRenderKey(prev => prev + 1);
 
-      } catch (error) {
-        console.error("Error al cargar mapa:", error);
-      }
-      setCargando(false);
-    };
+        } catch (error) {
+          console.error("Error al cargar mapa:", error);
+        }
+        setCargando(false);
+      };
+
 
   useEffect(() => { cargarDatosDelMapa(); }, []);
 
@@ -226,17 +226,40 @@ const estiloEsp = (feature) => {
   };
 
   // Alterna la disponibilidad de acceso para un recinto específico
-  const alternarBloqueoRecinto = async () => {
-    if (!recintoSeleccionado || !esAdmin) return;
-    const nuevoEstado = !recintoSeleccionado.bloqueado;
-    try {
-      await mapaService.updateEstadoRecinto(recintoSeleccionado.id_recinto, nuevoEstado);
+  // Alterna la disponibilidad de acceso para un recinto específico
+    const alternarBloqueoRecinto = async () => {
+      if (!recintoSeleccionado || !esAdmin) return;
+      const nuevoEstado = !recintoSeleccionado.bloqueado;
+
       setRecintoSeleccionado({ ...recintoSeleccionado, bloqueado: nuevoEstado });
-      cargarDatosDelMapa();
-    } catch (e) {
-      Swal.fire('Error', 'No se pudo cambiar el estado.', 'error');
-    }
-  };
+      setGeoRecintos(prev => {
+        if (!prev) return prev;
+        const nuevosRecintos = { ...prev };
+        nuevosRecintos.features = nuevosRecintos.features.map(f => {
+          if (f.properties.id_recinto === recintoSeleccionado.id_recinto) {
+             f.properties.bloqueado = nuevoEstado;
+          }
+          return f;
+        });
+        return nuevosRecintos;
+      });
+
+      setRenderKey(prev => prev + 1);
+      try {
+        await mapaService.updateEstadoRecinto(recintoSeleccionado.id_recinto, nuevoEstado);
+        Swal.fire({
+          toast: true,
+          position: 'bottom-end',
+          icon: 'success',
+          title: `Aula ${nuevoEstado ? 'bloqueada' : 'desbloqueada'}.`,
+          showConfirmButton: false,
+          timer: 2000
+        });
+      } catch (e) {
+        Swal.fire('Error', 'No se pudo cambiar el estado en la base de datos.', 'error');
+        cargarDatosDelMapa();
+      }
+    };
 
   // realiza operaciones de bloqueo o liberación sobre múltiples zonas
  const procesarZonasMasivo = async (zonasAProcesar, bloquear) => {
