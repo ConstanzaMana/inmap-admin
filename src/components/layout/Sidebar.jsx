@@ -54,8 +54,7 @@ export default function Sidebar() {
 
   return (
     // contenedor lateral
-    <aside className="w-64 bg-slate-900 p-6 flex flex-col h-screen sticky top-0 shadow-xl select-none border-r border-slate-800">
-
+      <aside className="w-64 bg-slate-900 p-6 flex flex-col h-screen sticky top-0 shadow-xl select-none border-r border-slate-800 overflow-y-auto">
       <Link to="/" className="flex items-center gap-3 px-2 mb-10 shrink-0 hover:opacity-80 transition-opacity no-underline">
           <img src={logo} alt="InMap Logo" className="w-12 h-12 object-contain rounded-xl" />
           <h1 className="text-xl font-bold text-white tracking-tight">InMap Admin</h1>
