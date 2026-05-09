@@ -157,27 +157,36 @@ const handleUpdatePassword = async (e) => {
 
                         <div className="hidden md:block"></div>
 
-                        <div className="space-y-1.5">
-                          <label htmlFor="passNueva" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nueva Contraseña</label>
-                          <div className="relative">
-                            <input
-                              id="passNueva"
-                              type={mostrarPass ? "text" : "password"}
-                              required
-                              value={formPass.passNueva}
-                              onChange={e => setFormPass({...formPass, passNueva: e.target.value})}
-                              className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setMostrarPass(!mostrarPass)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
-                              title={mostrarPass ? "Ocultar contraseña" : "Mostrar contraseña"}
-                            >
-                              {mostrarPass ? <EyeOff size={20} /> : <Eye size={20} />}
-                            </button>
-                          </div>
-                        </div>
+                    <div className="space-y-1.5">
+                              <label htmlFor="passNueva" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nueva Contraseña</label>
+                              <div className="relative">
+                                <input
+                                  id="passNueva"
+                                  type={mostrarPass ? "text" : "password"}
+                                  required
+                                  value={formPass.passNueva}
+                                  onChange={e => setFormPass({...formPass, passNueva: e.target.value})}
+                                  className={`w-full px-4 py-3 pr-12 border rounded-2xl outline-none focus:ring-2 transition-all ${
+                                    formPass.passNueva.length > 0 && formPass.passNueva.length < 6
+                                    ? 'bg-rose-50 border-rose-400 text-rose-900 focus:ring-rose-500'
+                                    : 'bg-slate-50 border-slate-200 focus:ring-indigo-500'
+                                  }`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setMostrarPass(!mostrarPass)}
+                                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
+                                  title={mostrarPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                >
+                                  {mostrarPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                              </div>
+                              {formPass.passNueva.length > 0 && formPass.passNueva.length < 6 ? (
+                                <p className="text-xs text-rose-500 mt-1 font-medium ml-1">La contraseña debe tener al menos 6 caracteres.</p>
+                              ) : (
+                                <p className="text-xs text-slate-400 mt-1 ml-1">Mínimo 6 caracteres.</p>
+                              )}
+                            </div>
 
                         <div className="space-y-1.5">
                           <label htmlFor="confirmarPass" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Confirmar Nueva</label>
