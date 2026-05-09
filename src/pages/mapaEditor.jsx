@@ -226,7 +226,6 @@ const estiloEsp = (feature) => {
   };
 
   // Alterna la disponibilidad de acceso para un recinto específico
-  // Alterna la disponibilidad de acceso para un recinto específico
     const alternarBloqueoRecinto = async () => {
       if (!recintoSeleccionado || !esAdmin) return;
       const nuevoEstado = !recintoSeleccionado.bloqueado;

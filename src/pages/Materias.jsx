@@ -82,19 +82,19 @@ export default function Materias() {
         }
 
         Swal.fire({
-          title: '¡éxito!',
-          text: `la materia se ha ${editando ? 'actualizado' : 'guardado'} correctamente.`,
-          icon: 'success',
-          confirmButtonColor: '#4f46e5',
-          timer: 2000
-        });
+                  title: '¡Éxito!',
+                  text: `La materia se ha ${editando ? 'actualizado' : 'guardado'} correctamente.`,
+                  icon: 'success',
+                  confirmButtonColor: '#4f46e5',
+                  timer: 2000
+                });
 
         setMostrarModal(false);
         setEditando(null);
         setFormData(estadoInicial);
         cargarDatos();
       } catch (error) {
-         let mensajeError = error.message || 'no se pudo completar la operación.';
+         let mensajeError = error.message || 'No se pudo completar la operación.';
 
          if (mensajeError.includes('{')) {
            try {
@@ -114,30 +114,30 @@ export default function Materias() {
     };
 
   // Elimina una materia
-  const handleEliminar = async (codMateria) => {
-    Swal.fire({
-      title: '¿estás seguro?',
-      text: "esta acción no se puede deshacer.",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#64748b',
-      confirmButtonText: 'sí, eliminar',
-      reverseButtons: true
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        setCargando(true);
-        try {
-          await materiasService.delete(codMateria);
-          Swal.fire({ title: 'eliminado', text: 'materia borrada.', icon: 'success', timer: 1500, showConfirmButton: false });
-          cargarDatos();
-        } catch (error) {
-          Swal.fire('error', 'fallo al intentar eliminar.', 'error');
-          setCargando(false);
+    const handleEliminar = async (codMateria) => {
+      Swal.fire({
+        title: '¿Estás seguro?',
+        text: "Esta acción no se puede deshacer.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, eliminar',
+        reverseButtons: true
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          setCargando(true);
+          try {
+            await materiasService.delete(codMateria);
+            Swal.fire({ title: 'Eliminado', text: 'Materia borrada.', icon: 'success', timer: 1500, showConfirmButton: false });
+            cargarDatos();
+          } catch (error) {
+            Swal.fire('Error', 'Fallo al intentar eliminar.', 'error');
+            setCargando(false);
+          }
         }
-      }
-    });
-  };
+      });
+    };
 
   // prepara la interfaz para la modificación de una materia existente
   const abrirEdicion = (materia) => {

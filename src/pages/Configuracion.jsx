@@ -5,7 +5,7 @@
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Lock, UserPlus, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, UserX } from 'lucide-react';
+import { Settings, Lock, UserPlus, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, UserX, Eye, EyeOff } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { authService } from '../api/authService';
 
@@ -13,7 +13,7 @@ export default function Configuracion() {
   const navigate = useNavigate();
   const rolUsuario = localStorage.getItem('rol') || '';
   const esAdmin = rolUsuario.toUpperCase() === 'ADMINISTRADOR' || rolUsuario.toUpperCase() === 'ADMIN';
-
+  const [mostrarPass, setMostrarPass] = useState(false);
   const [panelAbierto, setPanelAbierto] = useState(null);
   const [cargando, setCargando] = useState(false);
 
@@ -26,7 +26,7 @@ export default function Configuracion() {
   const coincidenPass = formPass.passNueva === formPass.confirmarPass && formPass.confirmarPass !== '';
   const coincidenReg = formRegistro.password === formRegistro.confirmPassword && formRegistro.confirmPassword !== '';
 
-  const handleUpdatePassword = async (e) => {
+const handleUpdatePassword = async (e) => {
     e.preventDefault();
     if (!coincidenPass || formPass.passNueva.length < 6) return;
     setCargando(true);
@@ -36,7 +36,12 @@ export default function Configuracion() {
       setFormPass({ passActual: '', passNueva: '', confirmarPass: '' });
       setPanelAbierto(null);
     } catch (error) {
-      Swal.fire('Acceso denegado', error.message, 'error');
+      Swal.fire({
+        title: 'No se pudo actualizar',
+        text: error.message || 'La contraseña actual es incorrecta. Por favor, intentalo de nuevo.',
+        icon: 'error',
+        confirmButtonColor: '#ef4444'
+      });
     } finally { setCargando(false); }
   };
 
@@ -55,7 +60,7 @@ export default function Configuracion() {
       setFormRegistro({ username: '', email: '', password: '', confirmPassword: '', role: 'VISUAL' });
       setPanelAbierto(null);
     } catch (error) {
-      Swal.fire('Error de registro', error.message, 'error');
+      Swal.fire('Error de registro', error.message || 'El email o el nombre de usuario ya se encuentran registrados.', 'error');
     } finally { setCargando(false); }
   };
 
@@ -126,60 +131,89 @@ export default function Configuracion() {
 
           {panelAbierto === 'pass' && (
               <form onSubmit={handleUpdatePassword} className="p-8 pt-0 border-t border-slate-50 space-y-5 animate-in fade-in slide-in-from-top-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
 
-                  <div className="space-y-1.5">
-                    {/* 👇 NUEVO: htmlFor="passActual" */}
-                    <label htmlFor="passActual" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Contraseña Actual</label>
-                    <input
-                      id="passActual" // 👈 NUEVO: id="passActual"
-                      type="password"
-                      required
-                      value={formPass.passActual}
-                      onChange={e => setFormPass({...formPass, passActual: e.target.value})}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="hidden md:block"></div>
+                        <div className="space-y-1.5">
+                          <label htmlFor="passActual" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Contraseña Actual</label>
+                          <div className="relative">
+                            <input
+                              id="passActual"
+                              type={mostrarPass ? "text" : "password"}
+                              required
+                              value={formPass.passActual}
+                              onChange={e => setFormPass({...formPass, passActual: e.target.value})}
+                              className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setMostrarPass(!mostrarPass)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
+                              title={mostrarPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            >
+                              {mostrarPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                          </div>
+                        </div>
 
-                  <div className="space-y-1.5">
-                    {/* 👇 NUEVO: htmlFor="passNueva" */}
-                    <label htmlFor="passNueva" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nueva Contraseña</label>
-                    <input
-                      id="passNueva" // 👈 NUEVO: id="passNueva"
-                      type="password"
-                      required
-                      value={formPass.passNueva}
-                      onChange={e => setFormPass({...formPass, passNueva: e.target.value})}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    />
-                  </div>
+                        <div className="hidden md:block"></div>
 
-                  <div className="space-y-1.5">
-                    {/* 👇 NUEVO: htmlFor="confirmarPass" */}
-                    <label htmlFor="confirmarPass" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Confirmar Nueva</label>
-                    <div className="relative">
-                      <input
-                        id="confirmarPass" // 👈 NUEVO: id="confirmarPass"
-                        type="password"
-                        required
-                        value={formPass.confirmarPass}
-                        onChange={e => setFormPass({...formPass, confirmarPass: e.target.value})}
-                        className={`w-full px-4 py-3 border rounded-2xl outline-none transition-all ${
-                          formPass.confirmarPass === '' ? 'bg-slate-50 border-slate-200' :
-                          coincidenPass ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-100' : 'bg-rose-50 border-rose-500 ring-2 ring-rose-100'
-                        }`}
-                      />
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                        {formPass.confirmarPass !== '' && (coincidenPass ? <CheckCircle2 className="text-emerald-600" size={18} /> : <AlertCircle className="text-rose-600" size={18} />)}
+                        <div className="space-y-1.5">
+                          <label htmlFor="passNueva" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Nueva Contraseña</label>
+                          <div className="relative">
+                            <input
+                              id="passNueva"
+                              type={mostrarPass ? "text" : "password"}
+                              required
+                              value={formPass.passNueva}
+                              onChange={e => setFormPass({...formPass, passNueva: e.target.value})}
+                              className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setMostrarPass(!mostrarPass)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
+                              title={mostrarPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            >
+                              {mostrarPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label htmlFor="confirmarPass" className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Confirmar Nueva</label>
+                          <div className="relative">
+                            <input
+                              id="confirmarPass"
+                              type={mostrarPass ? "text" : "password"}
+                              required
+                              value={formPass.confirmarPass}
+                              onChange={e => setFormPass({...formPass, confirmarPass: e.target.value})}
+                              className={`w-full px-4 py-3 pr-20 border rounded-2xl outline-none transition-all ${
+                                formPass.confirmarPass === '' ? 'bg-slate-50 border-slate-200' :
+                                coincidenPass ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-100' : 'bg-rose-50 border-rose-500 ring-2 ring-rose-100'
+                              }`}
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => setMostrarPass(!mostrarPass)}
+                              className="absolute right-11 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
+                              title={mostrarPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            >
+                              {mostrarPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                              {formPass.confirmarPass !== '' && (coincidenPass ? <CheckCircle2 className="text-emerald-600" size={18} /> : <AlertCircle className="text-rose-600" size={18} />)}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-                <button disabled={!coincidenPass || cargando} className="mt-4 bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all">
-                  {cargando ? 'Guardando...' : 'Actualizar Contraseña'}
-                </button>
-              </form>
+
+                      <button disabled={!coincidenPass || cargando} className="mt-4 bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all">
+                        {cargando ? 'Guardando...' : 'Actualizar Contraseña'}
+                      </button>
+                    </form>
             )}
         </div>
 
@@ -226,27 +260,66 @@ export default function Configuracion() {
                    />
                  </div>
 
+                {/* Campo Contraseña*/}
                  <div className="space-y-1.5">
                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Contraseña</label>
-                   <input
-                     type="password" name="new-user-password-inmap" autoComplete="new-password" required
-                     value={formRegistro.password} onChange={e => setFormRegistro({...formRegistro, password: e.target.value})}
-                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                   />
+                   <div className="relative">
+                     <input
+                       type={mostrarPass ? "text" : "password"}
+                       name="new-user-password-inmap"
+                       autoComplete="new-password"
+                       required
+                       value={formRegistro.password}
+                       onChange={e => setFormRegistro({...formRegistro, password: e.target.value})}
+                       className={`w-full px-4 py-3 pr-12 border rounded-2xl outline-none focus:ring-2 transition-all ${
+                         formRegistro.password.length > 0 && formRegistro.password.length < 6
+                         ? 'bg-rose-50 border-rose-400 text-rose-900 focus:ring-rose-500'
+                         : 'bg-slate-50 border-slate-200 focus:ring-indigo-500'
+                       }`}
+                     />
+                     <button
+                       type="button"
+                       onClick={() => setMostrarPass(!mostrarPass)}
+                       className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
+                       title={mostrarPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                     >
+                       {mostrarPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                     </button>
+                   </div>
+                   {/* Mensaje dinámico de ayuda o error */}
+                   {formRegistro.password.length > 0 && formRegistro.password.length < 6 ? (
+                     <p className="text-xs text-rose-500 mt-1 font-medium ml-1">La contraseña debe tener al menos 6 caracteres.</p>
+                   ) : (
+                     <p className="text-xs text-slate-400 mt-1 ml-1">Mínimo 6 caracteres.</p>
+                   )}
                  </div>
 
+                 {/* Campo Confirmar Contraseña  */}
                  <div className="space-y-1.5">
                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Confirmar Contraseña</label>
                    <div className="relative">
                      <input
-                       type="password" name="confirm-user-password-inmap" autoComplete="new-password" required
-                       value={formRegistro.confirmPassword} onChange={e => setFormRegistro({...formRegistro, confirmPassword: e.target.value})}
-                       className={`w-full px-4 py-3 border rounded-2xl outline-none transition-all ${
-                         formRegistro.confirmPassword === '' ? 'bg-slate-50 border-slate-200' :
+                       type={mostrarPass ? "text" : "password"}
+                       required
+                       value={formRegistro.confirmPassword}
+                       onChange={e => setFormRegistro({...formRegistro, confirmPassword: e.target.value})}
+                       className={`w-full px-4 py-3 pr-20 border rounded-2xl outline-none focus:ring-2 transition-all ${
+                         formRegistro.confirmPassword === '' ? 'bg-slate-50 border-slate-200 focus:ring-indigo-500' :
                          coincidenReg ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-100' : 'bg-rose-50 border-rose-500 ring-2 ring-rose-100'
                        }`}
                      />
-                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
+
+                     <button
+                       type="button"
+                       onClick={() => setMostrarPass(!mostrarPass)}
+                       className="absolute right-11 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
+                       title={mostrarPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                     >
+                       {mostrarPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                     </button>
+
+                     {/* Tilde o cruz de validación  */}
+                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                        {formRegistro.confirmPassword !== '' && (coincidenReg ? <CheckCircle2 className="text-emerald-600" size={18} /> : <AlertCircle className="text-rose-600" size={18} />)}
                      </div>
                    </div>
