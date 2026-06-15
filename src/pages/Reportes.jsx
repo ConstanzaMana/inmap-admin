@@ -179,16 +179,25 @@ const dispositivosFiltrados = dispositivos
                         </div>
                       </td>
 
-                      {/* Estado */}
+                       {/* Estado */}
                       <td className="p-4 align-middle">
-                        <div className="flex flex-col items-start gap-1">
+                        <div className="flex flex-col items-start gap-1.5">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black tracking-wide border ${estadoConfig.color}`}>
                             {estadoConfig.icono}
                             {estadoString}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            Últ. vez: {formatearFecha(beacon.lastReportAt)}
-                          </span>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              Últ. vez: {formatearFecha(beacon.lastReportAt)}
+                            </span>
+
+                            {beacon.reportType === 'unexpected_reset' && (
+                              <span className="flex items-center gap-1 text-[9px] text-rose-600 font-bold bg-rose-100 px-1.5 py-0.5 rounded border border-rose-200 uppercase shadow-sm" title="El ESP32 se reinició de forma anómala">
+                                <AlertTriangle size={10} /> Alerta
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -262,30 +271,39 @@ const dispositivosFiltrados = dispositivos
                 </div>
               </div>
 
-              {/* Sección: Diagnóstico de Hardware (Info Dura) */}
-              <div>
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
-                  <HardDrive size={14} /> Telemetría del Sistema
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
-                    <span className="text-sm text-slate-600 font-medium">Reinicio (Reset Reason)</span>
-                    <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2 py-1 rounded">{beaconSeleccionado.resetReason || 'N/A'}</span>
+                {/* Sección: Diagnóstico de Hardware */}
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
+                      <HardDrive size={14} /> Telemetría del Sistema
+                    </h3>
+
+                    <div className={`mb-4 flex items-center justify-between p-3.5 border rounded-xl shadow-sm ${beaconSeleccionado.reportType === 'unexpected_reset' ? 'border-rose-200 bg-rose-50' : 'border-slate-100 bg-slate-50'}`}>
+                      <span className={`text-sm font-bold ${beaconSeleccionado.reportType === 'unexpected_reset' ? 'text-rose-800' : 'text-slate-700'}`}>Tipo de Último Reporte</span>
+                      <span className={`font-mono text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${beaconSeleccionado.reportType === 'unexpected_reset' ? 'bg-rose-200 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                        {beaconSeleccionado.reportType === 'unexpected_reset' ? <AlertTriangle size={14} /> : <Clock size={14} />}
+                        {beaconSeleccionado.reportType === 'unexpected_reset' ? 'REINICIO INESPERADO' : 'NORMAL (HEARTBEAT)'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
+                        <span className="text-sm text-slate-600 font-medium">Reinicio (Reset Reason)</span>
+                        <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2 py-1 rounded">{beaconSeleccionado.resetReason || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
+                        <span className="text-sm text-slate-600 font-medium">Motivo Despertar</span>
+                        <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2 py-1 rounded">{beaconSeleccionado.wakeupCause || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
+                        <span className="text-sm text-slate-600 font-medium">Ciclos de Arranque</span>
+                        <span className="font-mono text-xs font-bold text-indigo-600">{beaconSeleccionado.bootCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
+                        <span className="text-sm text-slate-600 font-medium">Memoria Heap Libre</span>
+                        <span className="font-mono text-xs font-bold text-emerald-600">{(beaconSeleccionado.freeHeapBytes / 1024).toFixed(1)} KB</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
-                    <span className="text-sm text-slate-600 font-medium">Motivo Despertar</span>
-                    <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2 py-1 rounded">{beaconSeleccionado.wakeupCause || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
-                    <span className="text-sm text-slate-600 font-medium">Ciclos de Arranque</span>
-                    <span className="font-mono text-xs font-bold text-indigo-600">{beaconSeleccionado.bootCount}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl">
-                    <span className="text-sm text-slate-600 font-medium">Memoria Heap Libre</span>
-                    <span className="font-mono text-xs font-bold text-emerald-600">{(beaconSeleccionado.freeHeapBytes / 1024).toFixed(1)} KB</span>
-                  </div>
-                </div>
-              </div>
 
               {/* Sección: Tiempos */}
               <div>
