@@ -179,27 +179,29 @@ const dispositivosFiltrados = dispositivos
                         </div>
                       </td>
 
-                       {/* Estado */}
-                      <td className="p-4 align-middle">
-                        <div className="flex flex-col items-start gap-1.5">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black tracking-wide border ${estadoConfig.color}`}>
-                            {estadoConfig.icono}
-                            {estadoString}
-                          </span>
+                        {/* Estado */}
+                           <td className="p-4 align-middle">
+                             <div className="flex flex-col items-start gap-1.5">
 
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              Últ. vez: {formatearFecha(beacon.lastReportAt)}
-                            </span>
+                               <div className="flex items-center gap-2">
+                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black tracking-wide border ${estadoConfig.color}`}>
+                                   {estadoConfig.icono}
+                                   {estadoString}
+                                 </span>
 
-                            {beacon.reportType === 'unexpected_reset' && (
-                              <span className="flex items-center gap-1 text-[9px] text-rose-600 font-bold bg-rose-100 px-1.5 py-0.5 rounded border border-rose-200 uppercase shadow-sm" title="El ESP32 se reinició de forma anómala">
-                                <AlertTriangle size={10} /> Alerta
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
+                                 {beacon.reportType === 'unexpected_reset' && (
+                                   <span className="flex items-center gap-1 text-[9px] text-rose-600 font-bold bg-rose-100 px-1.5 py-0.5 rounded border border-rose-200 uppercase shadow-sm" title="El ESP32 se reinició de forma anómala">
+                                     <AlertTriangle size={10} /> Alerta
+                                   </span>
+                                 )}
+                               </div>
+
+                               <span className="text-[10px] text-slate-400 font-medium">
+                                 Últ. vez: {formatearFecha(beacon.lastReportAt)}
+                               </span>
+
+                             </div>
+                           </td>
 
                       {/* Botón Detalles */}
                       <td className="p-4 align-middle text-right">
