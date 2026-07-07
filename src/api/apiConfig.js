@@ -24,12 +24,13 @@ export const fetchConFallback = async (endpoint, options = {}, fallbackData = nu
      * se aplica automáticamente a métodos que modifican el estado del servidor.
      */
     if (['POST', 'PUT', 'DELETE'].includes(method)) {
-      const token = localStorage.getItem('adminToken');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      } else {
-        console.warn(`petición ${method} sin credenciales de acceso.`);
-      }
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        } else if (['POST', 'PUT', 'DELETE'].includes(method)) {
+          console.warn(`petición ${method} sin credenciales de acceso.`);
+        }
+
     }
 
     // ejecución de la petición a la api

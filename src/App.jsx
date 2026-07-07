@@ -24,9 +24,22 @@ const RutaPrivada = ({ children }) => {
   const token = localStorage.getItem('adminToken');
 
   if (!token) {
-    // redirección automática al login en caso de ausencia de credenciales
     return <Navigate to="/login" replace />;
   }
+
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const tiempoExpiracion = payload.exp * 1000;
+
+    if (Date.now() >= tiempoExpiracion) {
+      localStorage.clear();
+      return <Navigate to="/login" replace />;
+    }
+  } catch (error) {
+    localStorage.clear();
+    return <Navigate to="/login" replace />;
+  }
+
   return children;
 };
 
