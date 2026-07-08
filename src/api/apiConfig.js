@@ -6,6 +6,20 @@
 // URL base para las peticiones a la API del sistema en Render
 export const API_BASE_URL = "https://restful-api-inmap.onrender.com";
 
+axios.interceptors.response.use(
+  function (response) {
+    return response;
+  },
+  function (error) {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      console.warn("Sesión expirada o inválida. Redirigiendo al login...");
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // realiza peticiones http y usa datos locales en caso de fallo.
 export const fetchConFallback = async (endpoint, options = {}, fallbackData = null) => {
   try {
