@@ -2,7 +2,7 @@
  * Módulo que centraliza la comunicación con la api, gestionando
  * la seguridad mediante tokens y el control de sesiones activas.
  */
-
+import axios from 'axios';
 // URL base para las peticiones a la API del sistema en Render
 export const API_BASE_URL = "https://restful-api-inmap.onrender.com";
 
