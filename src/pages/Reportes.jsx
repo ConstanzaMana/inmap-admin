@@ -171,7 +171,7 @@ const dispositivosFiltrados = dispositivos
                         </div>
                       </td>
 
-                    {/* Batería */}
+                    {/* Bateria */}
                       <td className="p-4 align-middle">
                         <div className="flex items-center gap-3 w-40">
                           {bateriaConfig.icono}
