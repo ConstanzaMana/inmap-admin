@@ -37,17 +37,16 @@ const dispositivosFiltrados = dispositivos
     });
 
   // Lógica inteligente para determinar el estado del Beacon
-  const determinarEstado = (beacon) => {
-    if (!beacon.isActive) return 'DESHABILITADO';
-    if (beacon.batteryPercent <= 15) return 'BATERIA CRÍTICA';
+    const determinarEstado = (beacon) => {
+      if (!beacon.isActive) return 'DESHABILITADO';
+      if (beacon.batteryPercent <= 15) return 'BATERÍA BAJA';
 
-    // Si pasaron más de 24hs sin reportarse, lo marcamos como desconectado
-    const fechaUltimoReporte = new Date(beacon.lastReportAt);
-    const hace24hs = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    if (fechaUltimoReporte < hace24hs) return 'SIN SEÑAL';
+      const fechaUltimoReporte = new Date(beacon.lastReportAt);
+      const hace24hs = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      if (fechaUltimoReporte < hace24hs) return 'SIN SEÑAL';
 
-    return 'ACTIVO';
-  };
+      return 'ACTIVO';
+    };
 
   const formatearMilisegundos = (ms) => {
     if (!ms && ms !== 0) return 'N/A';
@@ -65,16 +64,23 @@ const dispositivosFiltrados = dispositivos
 
   const getEstadoConfig = (estado) => {
     if (estado === 'ACTIVO') return { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icono: <Wifi size={14} /> };
-    if (estado === 'BATERIA CRÍTICA') return { color: 'bg-amber-100 text-amber-700 border-amber-200', icono: <BatteryWarning size={14} /> };
+    if (estado === 'BATERÍA BAJA') return { color: 'bg-amber-100 text-amber-700 border-amber-200', icono: <BatteryWarning size={14} /> };
     if (estado === 'SIN SEÑAL') return { color: 'bg-rose-100 text-rose-700 border-rose-200', icono: <WifiOff size={14} /> };
     return { color: 'bg-slate-100 text-slate-700 border-slate-200', icono: <AlertTriangle size={14} /> }; // DESHABILITADO
   };
 
   const getBateriaIconoYColor = (nivel) => {
-    if (nivel > 50) return { icono: <Battery size={16} className="text-emerald-500" />, colorBarra: 'bg-emerald-500' };
-    if (nivel > 15) return { icono: <BatteryMedium size={16} className="text-amber-500" />, colorBarra: 'bg-amber-500' };
-    return { icono: <BatteryWarning size={16} className="text-rose-500 animate-pulse" />, colorBarra: 'bg-rose-500' };
-  };
+      // Si el valor es 85 o mayor (>= 4.06 V)
+      if (nivel >= 85) {
+        return { texto: 'Alta', colorTexto: 'text-emerald-700', icono: <Battery size={16} className="text-emerald-500" />, colorBarra: 'bg-emerald-500' };
+      }
+      // Si el valor es 50 (entre 3.95 V y 4.06 V)
+      if (nivel >= 50) {
+        return { texto: 'Media', colorTexto: 'text-amber-700', icono: <BatteryMedium size={16} className="text-amber-500" />, colorBarra: 'bg-amber-500' };
+      }
+      // Si el valor es 15 o menor (< 3.95 V)
+      return { texto: 'Baja', colorTexto: 'text-rose-700', icono: <BatteryWarning size={16} className="text-rose-500 animate-pulse" />, colorBarra: 'bg-rose-500' };
+    };
 
   const formatearFecha = (fechaIso) => {
     if (!fechaIso) return 'Sin datos';
@@ -165,7 +171,7 @@ const dispositivosFiltrados = dispositivos
                         </div>
                       </td>
 
-                      {/* Batería */}
+                    {/* Batería */}
                       <td className="p-4 align-middle">
                         <div className="flex items-center gap-3 w-40">
                           {bateriaConfig.icono}
@@ -175,7 +181,9 @@ const dispositivosFiltrados = dispositivos
                               style={{ width: `${Math.max(0, Math.min(100, beacon.batteryPercent))}%` }}
                             ></div>
                           </div>
-                          <span className="text-xs font-bold text-slate-600 w-8">{beacon.batteryPercent}%</span>
+                          <span className={`text-xs font-bold w-10 ${bateriaConfig.colorTexto}`}>
+                            {bateriaConfig.texto}
+                          </span>
                         </div>
                       </td>
 
