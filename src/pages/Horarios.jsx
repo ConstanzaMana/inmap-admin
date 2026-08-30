@@ -403,14 +403,15 @@ const abrirEdicionBase = (hb) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 overflow-x-auto">
-        {cargando ? (
-          <div className="flex items-center justify-center h-64 text-slate-500 font-medium animate-pulse">Cargando datos...</div>
-        ) : (
-          <div className="min-w-[1000px] grid grid-cols-6 divide-x divide-slate-200">
-            {DIAS_SEMANA.map(dia => {
-              const clases = clasesDelDia(dia);
-              return (
+      {/* Contenedor de la grilla con los nuevos límites (w-full min-w-0) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 overflow-x-auto w-full min-w-0">
+              {cargando ? (
+                <div className="flex items-center justify-center h-64 text-slate-500 font-medium animate-pulse">Cargando datos...</div>
+              ) : (
+                <div className="min-w-[900px] grid grid-cols-6 divide-x divide-slate-200">
+                  {DIAS_SEMANA.map(dia => {
+                    const clases = clasesDelDia(dia);
+                    return (
                 <div key={dia} className="flex flex-col bg-slate-50/50 min-h-[50vh]">
                   <div className="bg-slate-100 py-3 text-center border-b border-slate-200 sticky top-0 z-10">
                     <h3 className="font-bold text-slate-700 uppercase tracking-wide text-sm">{dia}</h3>
