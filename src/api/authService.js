@@ -25,7 +25,6 @@ export const authService = {
       }
       return response.data;
     } catch (error) {
-      // Capturamos el mensaje exacto que manda el backend
       throw new Error(error.response?.data?.message || 'Error al actualizar la contraseña.');
     }
   },
@@ -41,7 +40,6 @@ export const authService = {
       });
       return response.data;
     } catch (error) {
-      // Capturamos la excepción (ej: OverlapException del backend)
       throw new Error(error.response?.data?.message || 'Error al crear el perfil de usuario.');
     }
   },

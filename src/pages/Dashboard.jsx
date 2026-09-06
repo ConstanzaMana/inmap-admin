@@ -129,7 +129,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* banner del mapa (ahora tiene aún más protagonismo) */}
+      {/* banner del mapa */}
       <div
         onClick={() => navigate('/mapa')}
         className="relative bg-slate-50 rounded-2xl overflow-hidden shadow-sm flex-1 group cursor-pointer hover:shadow-md transition-all duration-300 border border-slate-200 min-h-0"
@@ -139,7 +139,7 @@ export default function Dashboard() {
       {/* panel de información del editor (izquierda) */}
       <div className="relative p-6 md:p-8 flex flex-col justify-center items-start z-10 h-full bg-slate-800">
         <div className="relative">
-          {/* icono con fondo sutilmente más claro para resaltar */}
+          {/* icono con fondo más claro para resaltar */}
           <div className="bg-slate-700 w-fit p-2.5 rounded-xl mb-4 border border-slate-600 shadow-sm group-hover:scale-105 transition-transform duration-300">
             <Map className="text-blue-300" size={28} />
           </div>
@@ -156,10 +156,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* visualización cartográfica con degradado mejorado (derecha) */}
+      {/* visualización cartográfica con degradado (derecha) */}
       <div className="relative h-40 md:h-full overflow-hidden bg-slate-50">
 
-        {/* degradado optimizado: parte de slate-800 y se extiende con transparencia suave */}
         <div className="absolute inset-y-0 left-0 w-40 bg-gradient-to-r from-slate-800 via-slate-800/70 to-transparent z-10 pointer-events-none hidden md:block" />
 
         <div className="absolute inset-0 z-0 pointer-events-none transition-transform duration-1000 group-hover:scale-105">

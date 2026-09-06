@@ -126,7 +126,6 @@ describe('Módulo de Pruebas: <MapaEditor /> (Plano Interactivo)', () => {
     });
 
     console.log('► Paso 2: Verificando que no existan botones de guardado o bloqueo...');
-    // Como Visualizador, los botones de "Guardar Nombre", "Bloquear Aula", etc. nunca deben renderizarse en el DOM
     expect(screen.queryByRole('button', { name: /Guardar Nombre/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Bloquear Aula/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Bloquear todas/i })).not.toBeInTheDocument();

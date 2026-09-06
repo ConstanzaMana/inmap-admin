@@ -155,7 +155,6 @@ describe('Módulo de Pruebas: <Horarios /> (Planificación Relacional)', () => {
     fireEvent.change(inputBusqueda, { target: { value: 'Química' } });
 
     console.log('► Paso 2: Evaluación de persistencia visual selectiva...');
-    // Química debe permanecer, Física debe ser filtrada
     expect(screen.getByText('Química')).toBeInTheDocument();
     expect(screen.queryByText('Física')).not.toBeInTheDocument();
 

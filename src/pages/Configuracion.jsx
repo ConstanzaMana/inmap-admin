@@ -327,7 +327,7 @@ const handleUpdatePassword = async (e) => {
                        {mostrarPass ? <EyeOff size={20} /> : <Eye size={20} />}
                      </button>
 
-                     {/* Tilde o cruz de validación  */}
+                     {/* Tilde de validación  */}
                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                        {formRegistro.confirmPassword !== '' && (coincidenReg ? <CheckCircle2 className="text-emerald-600" size={18} /> : <AlertCircle className="text-rose-600" size={18} />)}
                      </div>

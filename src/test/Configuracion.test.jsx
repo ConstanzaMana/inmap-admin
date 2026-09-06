@@ -39,9 +39,6 @@ describe('Módulo de Pruebas: <Configuracion /> (Seguridad y Cuentas)', () => {
 
     // Inyección de rol de administrador por defecto
     localStorage.setItem('rol', 'ADMINISTRADOR');
-
-    // Construcción de Token JWT simulado (Base64 codificado para "sub": "admin_test")
-    // Payload decodificado: {"sub":"admin_test"}
     const fakePayloadBase64 = 'eyJzdWIiOiJhZG1pbl90ZXN0In0=';
     localStorage.setItem('adminToken', `header.${fakePayloadBase64}.signature`);
   });
